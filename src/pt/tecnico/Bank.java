@@ -1,6 +1,5 @@
 package pt.tecnico;
 
-import pt.tecnico.API;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -33,13 +32,10 @@ public class Bank {
 	/**
 	 * Maximum size for a UDP packet. The field size sets a theoretical limit of
 	 * 65,535 bytes (8 byte header + 65,527 bytes of data) for a UDP datagram.
-	 * However the actual limit for the data length, which is imposed by the IPv4
-	 * protocol, is 65,507 bytes (65,535 − 8 byte UDP header − 20 byte IP header.
+	 * However, the actual limit for the data length, which is imposed by the IPv4
+	 * protocol, is 65,507 bytes (65,535 − 8 byte UDP header − 20 byte IP header).
 	 */
-	private static final int MAX_UDP_DATA_SIZE = (64 * 1024 - 1) - 8 - 20;
-
-	/** Buffer size for receiving a UDP packet. */
-	private static final int BUFFER_SIZE = MAX_UDP_DATA_SIZE;
+	private static final int BUFFER_SIZE = (64 * 1024 - 1) - 8 - 20;
 
 	public static KeyPair read(String publicKeyPath, String privateKeyPath) throws GeneralSecurityException, IOException {
         System.out.println("Reading public key from file " + publicKeyPath + " ...");
@@ -102,7 +98,7 @@ public class Bank {
 		final String SYM_ALGO = "AES/CBC/PKCS5Padding";
 
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
-		Cipher DecryptCipher = Cipher.getInstance(CIPHER_ALGO);
+		Cipher decryptCipher = Cipher.getInstance(CIPHER_ALGO);
 		KeyPair keys = read("keys/bank_public_key.der", "keys/bank_private_key.der");
 
 		PublicKey pisKey = readPublic("keys/pis_public_key.der");
@@ -117,7 +113,7 @@ public class Bank {
 		// Wait for client packets 
 		while (true) {
 			try (DatagramSocket socket = new DatagramSocket(port)) {
-				DecryptCipher.init(Cipher.DECRYPT_MODE, keys.getPrivate());
+				decryptCipher.init(Cipher.DECRYPT_MODE, keys.getPrivate());
 				signCipher.init(Cipher.DECRYPT_MODE, pisKey);
 				byte[] buf = new byte[BUFFER_SIZE];
 				// Receive packet
@@ -138,7 +134,6 @@ public class Bank {
 
 				String response = "ok";
 
-
 				// Parse JSON and extract arguments
 				JsonObject requestJson = JsonParser.parseString(clientText).getAsJsonObject();
 				String from, body, to, mac, client, token, keyString;
@@ -153,7 +148,7 @@ public class Bank {
 					keyString = requestJson.get("SessionKey").getAsString();
 				}
 
-				byte[] keyBytes = DecryptCipher.doFinal(Base64.getDecoder().decode(keyString));
+				byte[] keyBytes = decryptCipher.doFinal(Base64.getDecoder().decode(keyString));
 				byte[] ivBytes = Arrays.copyOfRange(keyBytes, keyBytes.length-16, keyBytes.length);
 				keyBytes = Arrays.copyOfRange(keyBytes, 0, keyBytes.length-16);
 				SecretKey symKey = new SecretKeySpec(keyBytes, 0, keyBytes.length, "AES");
@@ -174,7 +169,7 @@ public class Bank {
 					response = "failed";
 				}
 
-				String tok = new String(DecryptCipher.doFinal(Base64.getDecoder().decode(token)));
+				String tok = new String(decryptCipher.doFinal(Base64.getDecoder().decode(token)));
 				if (inst.compareTo(Instant.parse(tok)) > 0) {
 					System.out.println("Old message resent!");
 					response = "failed";
@@ -187,8 +182,7 @@ public class Bank {
 				System.out.printf("Message to '%s', from '%s':%n%s%n", to, from, bodyDec);
 				System.out.println("response body = " + response);
 
-
-				DecryptCipher.init(Cipher.ENCRYPT_MODE, keys.getPrivate());
+				decryptCipher.init(Cipher.ENCRYPT_MODE, keys.getPrivate());
 				symCipher.init(Cipher.ENCRYPT_MODE, symKey, iv);
 				inst = Instant.now().plus(15, ChronoUnit.MINUTES);
 
@@ -205,10 +199,10 @@ public class Bank {
 					responseJson.addProperty("body", bodyEnc);
 
 					msgDig.update(cipheredBody);
-					String ins = Base64.getEncoder().encodeToString(DecryptCipher.doFinal(msgDig.digest()));
+					String ins = Base64.getEncoder().encodeToString(decryptCipher.doFinal(msgDig.digest()));
 					responseJson.addProperty("MAC", ins);
-					String Senttoken = Base64.getEncoder().encodeToString(symCipher.doFinal(inst.toString().getBytes()));
-					responseJson.addProperty("Token", Senttoken);
+					String sentToken = Base64.getEncoder().encodeToString(symCipher.doFinal(inst.toString().getBytes()));
+					responseJson.addProperty("Token", sentToken);
 				}
 				System.out.println("Response message: " + responseJson);
 

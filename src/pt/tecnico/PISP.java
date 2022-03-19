@@ -104,8 +104,8 @@ public class PISP {
 		KeyPair keys = read("keys/pis_public_key.der","keys/pis_private_key.der");
 
 		PublicKey bankPublic = readPublic("keys/bank_public_key.der");
-		Cipher Encryptcipher = Cipher.getInstance(ASYM_ALGO);
-		Encryptcipher.init(Cipher.ENCRYPT_MODE, bankPublic);
+		Cipher encryptCipher = Cipher.getInstance(ASYM_ALGO);
+		encryptCipher.init(Cipher.ENCRYPT_MODE, bankPublic);
 
 		Cipher symCipher = Cipher.getInstance(SYM_ALGO);
 		SecretKey symKey = generateSessionKey();
@@ -140,9 +140,9 @@ public class PISP {
 			msgDig.update(cipheredBody);
 			String macString = Base64.getEncoder().encodeToString(signCipher.doFinal(msgDig.digest()));
 			requestJson.addProperty("MAC", macString);
-			String token = Base64.getEncoder().encodeToString(Encryptcipher.doFinal(inst.toString().getBytes()));
+			String token = Base64.getEncoder().encodeToString(encryptCipher.doFinal(inst.toString().getBytes()));
 			requestJson.addProperty("token", token);
-			String keyString = Base64.getEncoder().encodeToString(Encryptcipher.doFinal(outputStream.toByteArray()));
+			String keyString = Base64.getEncoder().encodeToString(encryptCipher.doFinal(outputStream.toByteArray()));
 			requestJson.addProperty("SessionKey", keyString);	
 		}
 		System.out.println("Request message: " + requestJson);
@@ -164,7 +164,7 @@ public class PISP {
 
 		inst = Instant.now();
 		symCipher.init(Cipher.DECRYPT_MODE, symKey, iv);
-		Encryptcipher.init(Cipher.DECRYPT_MODE, bankPublic);
+		encryptCipher.init(Cipher.DECRYPT_MODE, bankPublic);
 
 		// Convert response to string
 		String serverText = new String(serverPacket.getData(), 0, serverPacket.getLength());
@@ -184,7 +184,7 @@ public class PISP {
 		
 		byte[] macBytes = null;
 		try {
-			macBytes = Encryptcipher.doFinal(Base64.getDecoder().decode(mac));
+			macBytes = encryptCipher.doFinal(Base64.getDecoder().decode(mac));
 		} catch (Exception e) {
 			System.out.println("Entity not authenticated!");
 		}
@@ -216,7 +216,7 @@ public class PISP {
 
 		if (result.equals("accepted")){
 			return 0;
-		} else{
+		} else {
 			return 1;
 		}
 	}
@@ -224,7 +224,7 @@ public class PISP {
 
 	public static void main(String[] args) throws Exception {
 		// Check arguments
-		if (args.length < 2) {
+		if (args.length < 3) {
 			System.err.println("Argument(s) missing!");
 			//System.err.printf("Usage: java %s host port%n", JsonClient.class.getName());
 			return;
@@ -249,7 +249,6 @@ public class PISP {
 		Cipher djangoDecryptCipher = Cipher.getInstance(CIPHER_ALGO);
 		Cipher pisDecryptCipher = Cipher.getInstance(CIPHER_ALGO);
 		KeyPair keys = read("keys/pis_public_key.der", "keys/pis_private_key.der");
-		
 
 		PublicKey djangoKey = readPublic("keys/django_public_key.der");
 		djangoDecryptCipher.init(Cipher.DECRYPT_MODE, keys.getPrivate());
@@ -288,7 +287,7 @@ public class PISP {
 
 				// Parse JSON and extract arguments
 				JsonObject requestJson = JsonParser.parseString(clientText).getAsJsonObject();
-				String from = null, body = null, to = null, mac = null, client = null, token = null, keyString = null;
+				String from, body, to, mac, client, token, keyString;
 				{
 					//JsonObject infoJson = requestJson.getAsJsonObject("info");
 					from = requestJson.get("from").getAsString();
@@ -327,9 +326,9 @@ public class PISP {
 				String cardNumber = bodyParts[0];
 				String cvc = bodyParts[1];
 				String validity = bodyParts[2];
-				String ammount = bodyParts[3];
+				String amount = bodyParts[3];
 
-				int result = paymentService(serverHost, serverAddress, serverPort, cardNumber, client, ammount, PISport); 
+				int result = paymentService(serverHost, serverAddress, serverPort, cardNumber, client, amount, PISport);
 
 				pisDecryptCipher.init(Cipher.ENCRYPT_MODE, keys.getPrivate());
 				inst = Instant.now().plus(15, ChronoUnit.MINUTES);
@@ -363,10 +362,5 @@ public class PISP {
 				System.out.printf("Response packet sent to %s:%d!%n", clientPacket.getAddress(), clientPacket.getPort());
 			}
 		}
-
 	}
-
-
-
-
 }
