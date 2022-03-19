@@ -1,24 +1,26 @@
 package pt.tecnico;
 
+import java.security.PublicKey;
+
 public class API {
 
-    public void openAccount() {
+    public void openAccount(PublicKey key) {
 
     }
 
-    public void sendAmmount() {
+    public void sendAmount(PublicKey source, PublicKey dest, float amount) {
 
     }
 
-    public void checkAccount() {
+    public void checkAccount(PublicKey key) {
 
     }
 
-    public void receiveAmmount() {
+    public void receiveAmount(PublicKey key) {
 
     }
 
-    public void audit() {
+    public void audit(PublicKey key) {
 
     }
 
