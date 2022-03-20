@@ -94,7 +94,7 @@ public class Bank {
 
 		// Hash and (de)cipher algorithms initialization
 		final String DIGEST_ALGO = "SHA-256";
-		final String CIPHER_ALGO = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
+		final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 		final String SYM_ALGO = "AES/CBC/PKCS5Padding";
 
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
@@ -161,7 +161,7 @@ public class Bank {
 				} catch (Exception e) {
 					System.out.println("Entity not authenticated!");
 				}
-				msgDig.update(Base64.getDecoder().decode(body));
+				msgDig.update(body.getBytes());
 				if (Arrays.equals(macBytes, msgDig.digest())) {
 					System.out.println("Confirmed content integrity.");
 				} else {
@@ -177,9 +177,9 @@ public class Bank {
 					System.out.println("Confirmed new request.");
 				}
 
-				client = new String(symCipher.doFinal(Base64.getDecoder().decode(client)));
-				String bodyDec = new String(symCipher.doFinal(Base64.getDecoder().decode(body)));
-				System.out.printf("Message to '%s', from '%s':%n%s%n", to, from, bodyDec);
+				//client = new String(symCipher.doFinal(Base64.getDecoder().decode(client)));
+				//String bodyDec = new String(symCipher.doFinal(Base64.getDecoder().decode(body)));
+				System.out.printf("Message to '%s', from '%s':%n%s%n", to, from, body);
 				System.out.println("response body = " + response);
 
 				decryptCipher.init(Cipher.ENCRYPT_MODE, keys.getPrivate());
@@ -194,11 +194,11 @@ public class Bank {
 					infoJson.addProperty("to", "Alice");
 					responseJson.add("info", infoJson);
 
-					byte[] cipheredBody = symCipher.doFinal(response.getBytes());
-					String bodyEnc = Base64.getEncoder().encodeToString(cipheredBody);
-					responseJson.addProperty("body", bodyEnc);
+					//byte[] cipheredBody = symCipher.doFinal(response.getBytes());
+					//String bodyEnc = Base64.getEncoder().encodeToString(cipheredBody);
+					responseJson.addProperty("body", response);
 
-					msgDig.update(cipheredBody);
+					msgDig.update(response.getBytes());
 					String ins = Base64.getEncoder().encodeToString(decryptCipher.doFinal(msgDig.digest()));
 					responseJson.addProperty("MAC", ins);
 					String sentToken = Base64.getEncoder().encodeToString(symCipher.doFinal(inst.toString().getBytes()));
