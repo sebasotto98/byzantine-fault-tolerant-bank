@@ -34,7 +34,7 @@ import com.google.gson.JsonParser;
 public class PISP {
 
 	/** Buffer size for receiving a UDP packet. */
-	private static final int BUFFER_SIZE = 65_507;
+	private static final int BUFFER_SIZE = 65507;
 	private static final int AES_SIZE = 256;
 
 
