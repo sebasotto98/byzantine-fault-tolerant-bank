@@ -1,0 +1,8 @@
+// Clients csv
+
+public_key_path, available_ammount, book_ammount,
+
+
+// Transaction History csv
+
+timestamp, from, to, ammount
