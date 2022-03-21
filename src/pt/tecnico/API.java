@@ -1,45 +1,32 @@
 package pt.tecnico;
 
+import java.io.*;
 import java.security.PublicKey;
-import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
-import java.security.KeyPair;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.SecureRandom;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Base64;
 
 import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
-
-import javax.crypto.spec.SecretKeySpec;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.opencsv.CSVWriter;
 
 public class API {
 
     private static final int BUFFER_SIZE = 65507;
-    private static final int FAIL = 2;
-    private static final int CORRECT = 1;
+    public static final int FAIL = 2;
+    public static final int CORRECT = 1;
     private static final int SOCKET_TIMEOUT = 5;
     private final String DIGEST_ALGO = "SHA-256";
 	private final String ASYM_ALGO = "RSA/ECB/PKCS1Padding";
-
 
     public int openAccount(PublicKey accountPublickey, PrivateKey accountPrivatekey, int clientPort, int clientId,
                             int serverPort, InetAddress serverAddress, PublicKey bankPublic) 
@@ -47,7 +34,6 @@ public class API {
 
         // Timestamps are in UTC
 		Instant inst = Instant.now().plus(SOCKET_TIMEOUT, ChronoUnit.MINUTES);
-
 		
 		//final String SYM_ALGO = "AES/CBC/PKCS5Padding";
 
@@ -89,12 +75,9 @@ public class API {
 
         requestJson.addProperty("infoJson", infoJson.toString());
 
-
-
         msgDig.update(infoJson.getAsByte());
         String macString = Base64.getEncoder().encodeToString(signCipher.doFinal(msgDig.digest()));
         requestJson.addProperty("MAC", macString);
-				
 		
 		System.out.println("Request message: " + requestJson);
 		
@@ -131,10 +114,8 @@ public class API {
         to = infoBankJson.get("to").getAsString();
         body = infoBankJson.get("body").getAsString();
         instantBank = infoBankJson.get("instant").getAsString();
-
         
         mac = responseJson.get("MAC").getAsString();
-		
 		
         int messageCheck = checkMessage(encryptCipher, mac, msgDig, infoJson, instantBank, inst);
 		//String bodyDec = new String(symCipher.doFinal(Base64.getDecoder().decode(body)));
@@ -142,9 +123,12 @@ public class API {
 		socket.close();
 		System.out.println("Socket closed");
 		
-		if (messageCheck == CORRECT && body.equals("AccountCreated")){
+		if (messageCheck == CORRECT && body.equals("AccountCreated")) {
+
+			writeToCSV("csv_files/clients.csv", new String[]{accountPublickey.toString(), "1000", "1000"});
+
             return CORRECT;
-        } else{
+        } else {
             return FAIL;
         }
 
@@ -166,7 +150,7 @@ public class API {
 
     }
 
-    public int checkMessage(Cipher encryptCipher, String mac, MessageDigest msgDig, JsonObject infoJson,
+    private int checkMessage(Cipher encryptCipher, String mac, MessageDigest msgDig, JsonObject infoJson,
                             String instantBank, Instant inst){
         byte[] macBytes = null;
 		try {
@@ -182,7 +166,6 @@ public class API {
 			System.out.printf("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes));	
 			result = "failed";
 		}
-
 		
 		if (inst.compareTo(Instant.parse(instantBank)) > 0) {
 			System.out.println("Old message resent!");
@@ -191,11 +174,24 @@ public class API {
 			System.out.println("Confirmed message freshness.");
 		}
 
-        if (result.equals("failed")){
+        if (result.equals("failed")) {
             return FAIL;
-        } else{
+        } else {
             return CORRECT;
         }
     }
+
+	public static void writeToCSV(String filePath, String[] values) {
+		File file = new File(filePath);
+		try {
+			FileWriter outputFile = new FileWriter(file);
+			CSVWriter writer = new CSVWriter(outputFile);
+			writer.writeNext(values);
+			writer.close();
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
 }
