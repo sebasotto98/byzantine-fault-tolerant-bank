@@ -7,7 +7,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="secure-messages" />
-        <module name="PIS" />
+        <module name="SEC_project" />
       </profile>
     </annotationProcessing>
   </component>

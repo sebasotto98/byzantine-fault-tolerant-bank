@@ -10,7 +10,7 @@ import java.util.Scanner;
 
 public class Client {
 
-    public static KeyPair read(String publicKeyPath, String privateKeyPath) throws GeneralSecurityException, IOException {
+    public static PublicKey readPublic(String publicKeyPath) throws GeneralSecurityException, IOException {
         System.out.println("Reading public key from file " + publicKeyPath + " ...");
         FileInputStream pubFis = new FileInputStream(publicKeyPath);
         byte[] pubEncoded = new byte[pubFis.available()];
@@ -21,6 +21,10 @@ public class Client {
         KeyFactory keyFacPub = KeyFactory.getInstance("RSA");
         PublicKey pub = keyFacPub.generatePublic(pubSpec);
 
+        return pub;
+    }
+
+    public static PrivateKey readPrivate(String privateKeyPath) throws GeneralSecurityException, IOException {
         System.out.println("Reading private key from file " + privateKeyPath + " ...");
         FileInputStream privFis = new FileInputStream(privateKeyPath);
         byte[] privEncoded = new byte[privFis.available()];
@@ -31,22 +35,19 @@ public class Client {
         KeyFactory keyFacPriv = KeyFactory.getInstance("RSA");
         PrivateKey priv = keyFacPriv.generatePrivate(privSpec);
 
-        KeyPair keys = new KeyPair(pub, priv);
-        return keys;
+        return priv;
     }
 
     public static void main(String[] args) throws GeneralSecurityException, IOException {
         API api = new API();
 
         int port = 9998;
-        int id = 0;
         int bankPort = 9999;
         InetAddress bankAddress = InetAddress.getLocalHost();
 
-        KeyPair keys = read("keys/pis_public_key.der","keys/pis_private_key.der");
-        PublicKey publicKey = keys.getPublic();
-        PrivateKey privateKey = keys.getPrivate();
-        PublicKey bankPublicKey = null;
+        PublicKey publicKey = readPublic("keys/pis_public_key.der");
+        PrivateKey privateKey = readPrivate("keys/pis_private_key.der");
+        PublicKey bankPublicKey = readPublic("keys/bank_public_key.der");
 
         Scanner sc = new Scanner(System.in);
         int ch = 0;
@@ -57,7 +58,7 @@ public class Client {
             ch = sc.nextInt();
             switch (ch) {
                 case 1:
-                    int accountOpened = api.openAccount(publicKey, privateKey, port, id, bankPort, bankAddress, bankPublicKey);
+                    int accountOpened = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey);
                     if(accountOpened == API.CORRECT) {
                         System.out.println("Account opened successfully!");
                     } else if(accountOpened == API.FAIL) {

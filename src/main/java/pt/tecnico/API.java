@@ -26,9 +26,9 @@ public class API {
     public static final int CORRECT = 1;
     private static final int SOCKET_TIMEOUT = 5;
     private final String DIGEST_ALGO = "SHA-256";
-	private final String ASYM_ALGO = "RSA/ECB/PKCS1Padding";
+	private final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 
-    public int openAccount(PublicKey accountPublickey, PrivateKey accountPrivatekey, int clientPort, int clientId,
+    public int openAccount(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort,
                             int serverPort, InetAddress serverAddress, PublicKey bankPublic) 
                             throws GeneralSecurityException, IOException  {
 
@@ -42,7 +42,7 @@ public class API {
 		//KeyPair keys = read("keys/pis_public_key.der","keys/pis_private_key.der");
 
 		//PublicKey bankPublic = readPublic("keys/bank_public_key.der");
-		Cipher encryptCipher = Cipher.getInstance(ASYM_ALGO);
+		Cipher encryptCipher = Cipher.getInstance(CIPHER_ALGO);
 		//encryptCipher.init(Cipher.ENCRYPT_MODE, bankPublic);
 
 		//Cipher symCipher = Cipher.getInstance(SYM_ALGO);
@@ -50,8 +50,8 @@ public class API {
 		//IvParameterSpec iv = generateIv();
 		//symCipher.init(Cipher.ENCRYPT_MODE, symKey, iv);
 
-		Cipher signCipher = Cipher.getInstance(ASYM_ALGO);
-		signCipher.init(Cipher.ENCRYPT_MODE, accountPrivatekey);
+		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
+		signCipher.init(Cipher.ENCRYPT_MODE, accountPrivateKey);
 
 		// Concat IV and session key to send
 		//ByteArrayOutputStream outputStream = new ByteArrayOutputStream(symKey.getEncoded().length + iv.getIV().length);
@@ -64,8 +64,8 @@ public class API {
 		JsonObject requestJson = JsonParser.parseString("{}").getAsJsonObject();
 		
         JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
-        infoJson.addProperty("client", clientId);
         infoJson.addProperty("to", "BFTB");
+		infoJson.addProperty("from", accountPublicKey.getEncoded().toString());
 
         String bodyText = "OpenAccount";
         //byte[] cipheredBody = symCipher.doFinal(bodyText.getBytes());
@@ -73,9 +73,9 @@ public class API {
         infoJson.addProperty("body", bodyText);
         infoJson.addProperty("instant", inst.toString());
 
-        requestJson.addProperty("infoJson", infoJson.toString());
+        requestJson.add("info", infoJson);
 
-        msgDig.update(infoJson.getAsByte());
+        msgDig.update(infoJson.toString().getBytes());
         String macString = Base64.getEncoder().encodeToString(signCipher.doFinal(msgDig.digest()));
         requestJson.addProperty("MAC", macString);
 		
@@ -117,7 +117,7 @@ public class API {
         
         mac = responseJson.get("MAC").getAsString();
 		
-        int messageCheck = checkMessage(encryptCipher, mac, msgDig, infoJson, instantBank, inst);
+        int messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, instantBank, inst);
 		//String bodyDec = new String(symCipher.doFinal(Base64.getDecoder().decode(body)));
 		// Close socket
 		socket.close();
@@ -125,7 +125,7 @@ public class API {
 		
 		if (messageCheck == CORRECT && body.equals("AccountCreated")) {
 
-			writeToCSV("csv_files/clients.csv", new String[]{accountPublickey.toString(), "1000", "1000"});
+			writeToCSV("csv_files/clients.csv", new String[]{accountPublicKey.getEncoded().toString(), "1000", "1000"});
 
             return CORRECT;
         } else {
@@ -156,9 +156,10 @@ public class API {
 		try {
 			macBytes = encryptCipher.doFinal(Base64.getDecoder().decode(mac));
 		} catch (Exception e) {
+			e.printStackTrace();
 			System.out.println("Entity not authenticated!");
 		}
-		msgDig.update(infoJson.getAsByte());
+		msgDig.update(infoJson.toString().getBytes());
 		String result = "accepted";
 		if (Arrays.equals(macBytes, msgDig.digest())) {
 			System.out.println("Confirmed equal body.");
