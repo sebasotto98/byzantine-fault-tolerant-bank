@@ -97,9 +97,9 @@ public class Bank {
 		return new IvParameterSpec(initVec);
 	}
 
-	private static String setResponse(String body, PublicKey pubClientKey) {
+	private static String setResponse(String body, String username) {
 		if(body.equals("OpenAccount")) {
-			writeToCSV("csv_files/clients.csv", new String[]{pubClientKey.getEncoded().toString(), "1000", "1000"});
+			writeToCSV("csv_files/clients.csv", new String[]{username, "1000", "1000"});
 			return "AccountCreated";
 		} else {
 			return "UNKNOWN_FUNCTION";
@@ -191,7 +191,7 @@ public class Bank {
 				}
 				msgDig.update(infoClientJson.toString().getBytes());
 				if (Arrays.equals(macBytes, msgDig.digest())) {
-					response = setResponse(body, pubClientKey);
+					response = setResponse(body, from);
 					System.out.println("Confirmed content integrity.");
 				} else {
 					System.out.printf("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes));
@@ -247,9 +247,8 @@ public class Bank {
 	}
 
 	private static void writeToCSV(String filePath, String[] values) {
-		File file = new File(filePath);
 		try {
-			FileWriter outputFile = new FileWriter(file);
+			FileWriter outputFile = new FileWriter(filePath, true);
 			CSVWriter writer = new CSVWriter(outputFile);
 			writer.writeNext(values);
 			writer.close();
