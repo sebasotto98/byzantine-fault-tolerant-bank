@@ -124,9 +124,6 @@ public class API {
 		System.out.println("Socket closed");
 		
 		if (messageCheck == CORRECT && body.equals("AccountCreated")) {
-
-			writeToCSV("csv_files/clients.csv", new String[]{accountPublicKey.getEncoded().toString(), "1000", "1000"});
-
             return CORRECT;
         } else {
             return FAIL;
@@ -181,18 +178,5 @@ public class API {
             return CORRECT;
         }
     }
-
-	public static void writeToCSV(String filePath, String[] values) {
-		File file = new File(filePath);
-		try {
-			FileWriter outputFile = new FileWriter(file);
-			CSVWriter writer = new CSVWriter(outputFile);
-			writer.writeNext(values);
-			writer.close();
-		}
-		catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
 
 }

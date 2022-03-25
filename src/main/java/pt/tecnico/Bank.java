@@ -1,6 +1,8 @@
 package pt.tecnico;
 
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -24,6 +26,7 @@ import javax.crypto.spec.IvParameterSpec;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.opencsv.CSVWriter;
 
 public class Bank {
 
@@ -94,8 +97,9 @@ public class Bank {
 		return new IvParameterSpec(initVec);
 	}
 
-	private static String setResponse(String body) {
+	private static String setResponse(String body, PublicKey pubPisKey) {
 		if(body.equals("OpenAccount")) {
+			writeToCSV("csv_files/clients.csv", new String[]{pubPisKey.getEncoded().toString(), "1000", "1000"});
 			return "AccountCreated";
 		} else {
 			return "UNKNOWN_FUNCTION";
@@ -166,8 +170,6 @@ public class Bank {
 				mac = requestJson.get("MAC").getAsString();
 				//token = requestJson.get("token").getAsString();
 				//keyString = requestJson.get("SessionKey").getAsString();
-
-				String response = setResponse(body);
 /**
 				byte[] keyBytes = decryptCipher.doFinal(Base64.getDecoder().decode(keyString));
 				byte[] ivBytes = Arrays.copyOfRange(keyBytes, keyBytes.length-16, keyBytes.length);
@@ -176,6 +178,8 @@ public class Bank {
 				IvParameterSpec iv = new IvParameterSpec(ivBytes);
 				symCipher.init(Cipher.DECRYPT_MODE, symKey, iv);
 */
+				String response = "failed";
+
 				byte[] macBytes = null;
 				try {
 					macBytes = signCipher.doFinal(Base64.getDecoder().decode(mac));
@@ -184,10 +188,10 @@ public class Bank {
 				}
 				msgDig.update(infoClientJson.toString().getBytes());
 				if (Arrays.equals(macBytes, msgDig.digest())) {
+					response = setResponse(body, pubPisKey);
 					System.out.println("Confirmed content integrity.");
 				} else {
-					System.out.printf("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes));	
-					response = "failed";
+					System.out.printf("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes));
 				}
 /**
 				String tok = new String(decryptCipher.doFinal(Base64.getDecoder().decode(token)));
@@ -236,6 +240,19 @@ public class Bank {
 				socket.send(serverPacket);
 				System.out.printf("Response packet sent to %s:%d!%n", clientPacket.getAddress(), clientPacket.getPort());
 			}
+		}
+	}
+
+	private static void writeToCSV(String filePath, String[] values) {
+		File file = new File(filePath);
+		try {
+			FileWriter outputFile = new FileWriter(file);
+			CSVWriter writer = new CSVWriter(outputFile);
+			writer.writeNext(values);
+			writer.close();
+		}
+		catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 }
