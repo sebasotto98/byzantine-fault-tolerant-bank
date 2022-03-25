@@ -35,9 +35,6 @@ public class API {
         String body = sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, "OpenAccount");
 		
 		if (body.equals("AccountCreated")) {
-
-			writeToCSV("csv_files/clients.csv", new String[]{accountPublicKey.getEncoded().toString(), "1000", "1000"});
-
             return CORRECT;
         } else {
             return FAIL;
