@@ -15,6 +15,10 @@ public enum ActionLabel {
     ACCOUNT_CREATED("AccountCreated"),
     PENDING_TRANSACTION("PendingTransaction"),
 
+    //generic labels
+    FAIL("Fail"),
+    SUCCESS("Success"),
+
     //OTHERS
     UNKNOWN_FUNCTION("UNKNOWN_FUNCTION");
 

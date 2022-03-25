@@ -21,13 +21,11 @@ import com.google.gson.JsonParser;
 public class API {
 
     private static final int BUFFER_SIZE = 65507;
-    public static final int FAIL = 2;
-    public static final int CORRECT = 1;
     private static final int SOCKET_TIMEOUT = 5;
     private final String DIGEST_ALGO = "SHA-256";
 	private final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 
-    public int openAccount(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort,
+    public String openAccount(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort,
                             int serverPort, InetAddress serverAddress, PublicKey bankPublic, String username, int requestID)
                             throws GeneralSecurityException, IOException  {
 
@@ -35,14 +33,14 @@ public class API {
 				username, ActionLabel.OPEN_ACCOUNT.getLabel(), requestID);
 		
 		if (body.equals(ActionLabel.ACCOUNT_CREATED.getLabel())) {
-            return CORRECT;
+            return ActionLabel.SUCCESS.getLabel();
         } else {
-            return FAIL;
+            return ActionLabel.FAIL.getLabel();
         }
 
     }
 
-    public int sendAmount(PublicKey sourcePublicKey, PrivateKey sourcePrivateKey, PublicKey destPublicKey, int clientPort,
+    public String sendAmount(PublicKey sourcePublicKey, PrivateKey sourcePrivateKey, PublicKey destPublicKey, int clientPort,
 						   int serverPort, InetAddress serverAddress, PublicKey bankPublic, int requestID, String username, float amount, String usernameDest)
 			throws GeneralSecurityException, IOException {
 
@@ -51,9 +49,9 @@ public class API {
 		String response = sendMessageAndReceiveBody(sourcePublicKey, sourcePrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
 
 		if (response.equals(ActionLabel.PENDING_TRANSACTION.getLabel())) {
-			return CORRECT;
+			return ActionLabel.SUCCESS.getLabel();
 		} else {
-			return FAIL;
+			return ActionLabel.FAIL.getLabel();
 		}
     }
 
@@ -69,7 +67,7 @@ public class API {
 
     }
 
-    private int checkMessage(Cipher encryptCipher, String mac, MessageDigest msgDig, JsonObject infoJson,
+    private String checkMessage(Cipher encryptCipher, String mac, MessageDigest msgDig, JsonObject infoJson,
                             String instantBank, Instant inst) {
         byte[] macBytes = null;
 		try {
@@ -93,9 +91,9 @@ public class API {
 			System.out.println("Confirmed message freshness.");
 		}
         if (result.equals("failed")) {
-            return FAIL;
+            return ActionLabel.FAIL.getLabel();
         } else {
-            return CORRECT;
+            return ActionLabel.SUCCESS.getLabel();
         }
     }
 
@@ -172,13 +170,13 @@ public class API {
         
         mac = responseJson.get("MAC").getAsString();
 		
-        int messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, instantBank, inst);
+        String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, instantBank, inst);
 
 		// Close socket
 		socket.close();
 		System.out.println("Socket closed");
 
-		if (messageCheck == CORRECT) {
+		if (messageCheck.equals(ActionLabel.SUCCESS.getLabel())) {
 			return body;
 		} else{
 			return "Failed";

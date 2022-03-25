@@ -57,7 +57,7 @@ public class Client {
         String privateKeyPath = null;
         Scanner sc = new Scanner(System.in);
 
-        int bankResponse = 0;
+        String bankResponse;
 
         int ch = 0;
         while (ch!=6) {
@@ -77,9 +77,9 @@ public class Client {
                     privateKey = readPrivate(privateKeyPath);
                     bankResponse = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID);
                     requestID++;
-                    if(bankResponse == API.CORRECT) {
+                    if(bankResponse.equals(ActionLabel.SUCCESS.getLabel())) {
                         System.out.println("Account opened successfully!");
-                    } else if(bankResponse == API.FAIL) {
+                    } else if(bankResponse.equals(ActionLabel.FAIL.getLabel())) {
                         System.out.println("Failed to open account.");
                     }
                     publicKey = null;
@@ -105,9 +105,9 @@ public class Client {
                     bankResponse = api.sendAmount(publicKey, privateKey, destKey, port, bankPort, bankAddress, bankPublicKey, requestID, username, amount, usernameDest);
                     requestID++;
 
-                    if(bankResponse == API.CORRECT) {
+                    if(bankResponse.equals(ActionLabel.SUCCESS.getLabel())) {
                         System.out.println("Transaction waiting for receiver approval!");
-                    } else if(bankResponse == API.FAIL) {
+                    } else if(bankResponse.equals(ActionLabel.FAIL.getLabel())) {
                         System.out.println("Failed to send amount!");
                     }
 
