@@ -29,10 +29,10 @@ public class API {
 	private final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 
     public int openAccount(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort,
-                            int serverPort, InetAddress serverAddress, PublicKey bankPublic, String username)
+                            int serverPort, InetAddress serverAddress, PublicKey bankPublic, String username, int requestID)
                             throws GeneralSecurityException, IOException  {
 
-        String body = sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, "OpenAccount");
+        String body = sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, "OpenAccount", requestID);
 		
 		if (body.equals("AccountCreated")) {
             return CORRECT;
@@ -104,11 +104,12 @@ public class API {
 	}
 
 	private String sendMessageAndReceiveBody(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort,
-											int serverPort, InetAddress serverAddress, PublicKey bankPublic, String username, String bodyText) 
+											int serverPort, InetAddress serverAddress, PublicKey bankPublic, String username, 
+											String bodyText, int requestID) 
 											throws GeneralSecurityException, IOException  {
 		
 		// Timestamps are in UTC
-		Instant inst = Instant.now().plus(SOCKET_TIMEOUT, ChronoUnit.MINUTES);
+		//Instant inst = Instant.now().plus(SOCKET_TIMEOUT, ChronoUnit.MINUTES);
 		
 		//final String SYM_ALGO = "AES/CBC/PKCS5Padding";
 
@@ -145,7 +146,7 @@ public class API {
         //byte[] cipheredBody = symCipher.doFinal(bodyText.getBytes());
         //String bodyEnc = Base64.getEncoder().encodeToString(cipheredBody);
         infoJson.addProperty("body", bodyText);
-        infoJson.addProperty("instant", inst.toString());
+        infoJson.addProperty("instant", Integer.toString(requestID));
 
         requestJson.add("info", infoJson);
 

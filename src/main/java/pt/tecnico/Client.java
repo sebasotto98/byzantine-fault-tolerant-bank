@@ -45,7 +45,7 @@ public class Client {
         int bankPort = 9999;
         InetAddress bankAddress = InetAddress.getLocalHost();
 
-
+        int requestID = 0;
         PublicKey bankPublicKey = readPublic("keys/bank_public_key.der");
         PublicKey publicKey = null;
         PrivateKey privateKey = null;
@@ -65,7 +65,8 @@ public class Client {
                     String privateKeyPath = "keys/"+username+"_private_key.der";
                     publicKey = readPublic(publicKeyPath);
                     privateKey = readPrivate(privateKeyPath);
-                    int accountOpened = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username);
+                    int accountOpened = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID);
+                    requestID++;
                     if(accountOpened == API.CORRECT) {
                         System.out.println("Account opened successfully!");
                     } else if(accountOpened == API.FAIL) {
