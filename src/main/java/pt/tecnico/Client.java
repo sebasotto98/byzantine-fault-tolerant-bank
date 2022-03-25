@@ -39,13 +39,16 @@ public class Client {
     }
 
     public static void main(String[] args) throws GeneralSecurityException, IOException {
-        API api = new API();
-
-        int port = 9998;
-        int bankPort = 9999;
+        if (args.length < 2) {
+            System.err.println("Argument(s) missing!");
+            return;
+        }
+        final int port = Integer.parseInt(args[0]);
+        int bankPort = Integer.parseInt(args[1]);
         InetAddress bankAddress = InetAddress.getLocalHost();
 
         int requestID = 0;
+        API api = new API();
         PublicKey bankPublicKey = readPublic("keys/bank_public_key.der");
         PublicKey publicKey = null;
         PrivateKey privateKey = null;
