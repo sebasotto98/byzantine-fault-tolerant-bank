@@ -29,7 +29,7 @@ public class API {
 	private final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 
     public int openAccount(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort,
-                            int serverPort, InetAddress serverAddress, PublicKey bankPublic) 
+                            int serverPort, InetAddress serverAddress, PublicKey bankPublic, String username)
                             throws GeneralSecurityException, IOException  {
 
         // Timestamps are in UTC
@@ -65,7 +65,7 @@ public class API {
 		
         JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
         infoJson.addProperty("to", "BFTB");
-		infoJson.addProperty("from", accountPublicKey.getEncoded().toString());
+		infoJson.addProperty("from", username);
 
         String bodyText = "OpenAccount";
         //byte[] cipheredBody = symCipher.doFinal(bodyText.getBytes());

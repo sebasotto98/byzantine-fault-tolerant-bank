@@ -97,9 +97,9 @@ public class Bank {
 		return new IvParameterSpec(initVec);
 	}
 
-	private static String setResponse(String body, PublicKey pubPisKey) {
+	private static String setResponse(String body, PublicKey pubClientKey) {
 		if(body.equals("OpenAccount")) {
-			writeToCSV("csv_files/clients.csv", new String[]{pubPisKey.getEncoded().toString(), "1000", "1000"});
+			writeToCSV("csv_files/clients.csv", new String[]{pubClientKey.getEncoded().toString(), "1000", "1000"});
 			return "AccountCreated";
 		} else {
 			return "UNKNOWN_FUNCTION";
@@ -126,7 +126,7 @@ public class Bank {
 
 		PublicKey pubKey = readPublic("keys/bank_public_key.der");
 		PrivateKey privKey = readPrivate("keys/bank_private_key.der");
-		PublicKey pubPisKey = readPublic("keys/pis_public_key.der");
+		PublicKey pubClientKey = null; //readPublic("keys/pis_public_key.der");
 
 		//Cipher symCipher = Cipher.getInstance(SYM_ALGO);
 
@@ -138,8 +138,7 @@ public class Bank {
 		// Wait for client packets 
 		while (true) {
 			try (DatagramSocket socket = new DatagramSocket(port)) {
-				decryptCipher.init(Cipher.DECRYPT_MODE, privKey);
-				signCipher.init(Cipher.DECRYPT_MODE, pubPisKey);
+
 				byte[] buf = new byte[BUFFER_SIZE];
 				// Receive packet
 				DatagramPacket clientPacket = new DatagramPacket(buf, buf.length);
@@ -179,6 +178,10 @@ public class Bank {
 				symCipher.init(Cipher.DECRYPT_MODE, symKey, iv);
 */
 				String response = "failed";
+				String publicClientPath = "keys/" + from + "_public_key.der";
+				pubClientKey = readPublic(publicClientPath);
+				decryptCipher.init(Cipher.DECRYPT_MODE, privKey);
+				signCipher.init(Cipher.DECRYPT_MODE, pubClientKey);
 
 				byte[] macBytes = null;
 				try {
@@ -188,7 +191,7 @@ public class Bank {
 				}
 				msgDig.update(infoClientJson.toString().getBytes());
 				if (Arrays.equals(macBytes, msgDig.digest())) {
-					response = setResponse(body, pubPisKey);
+					response = setResponse(body, pubClientKey);
 					System.out.println("Confirmed content integrity.");
 				} else {
 					System.out.printf("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes));
