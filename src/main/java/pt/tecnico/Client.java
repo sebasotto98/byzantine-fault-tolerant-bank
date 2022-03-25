@@ -61,7 +61,7 @@ public class Client {
             ch = sc.nextInt();
             switch (ch) {
                 case 1:
-                    System.out.println("What's the username? (to fetch public and private key");
+                    System.out.println("Please input username (to fetch public and private key).");
                     sc.nextLine();
                     String username = sc.nextLine();
                     String publicKeyPath = "keys/"+username+"_public_key.der";
