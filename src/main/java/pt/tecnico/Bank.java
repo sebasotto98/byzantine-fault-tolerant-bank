@@ -1,6 +1,5 @@
 package pt.tecnico;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -110,7 +109,6 @@ public class Bank {
 		// Check arguments
 		if (args.length < 1) {
 			System.err.println("Argument(s) missing!");
-			//System.err.printf("Usage: java %s port%n", JsonServer.class.getName());
 			return;
 		}
 		final int port = Integer.parseInt(args[0]);
@@ -119,7 +117,6 @@ public class Bank {
 		// Hash and (de)cipher algorithms initialization
 		final String DIGEST_ALGO = "SHA-256";
 		final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
-		//final String SYM_ALGO = "AES/CBC/PKCS5Padding";
 
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 		Cipher decryptCipher = Cipher.getInstance(CIPHER_ALGO);
@@ -127,8 +124,6 @@ public class Bank {
 		PublicKey pubKey = readPublic("keys/bank_public_key.der");
 		PrivateKey privKey = readPrivate("keys/bank_private_key.der");
 		PublicKey pubClientKey = null; //readPublic("keys/pis_public_key.der");
-
-		//Cipher symCipher = Cipher.getInstance(SYM_ALGO);
 
 		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
 
@@ -163,20 +158,10 @@ public class Bank {
 				JsonObject infoClientJson = requestJson.getAsJsonObject("info");
 				to = infoClientJson.get("to").getAsString();
 				from = infoClientJson.get("from").getAsString();
-				//client = infoJson.get("client").getAsString();
 				body = infoClientJson.get("body").getAsString();
 				instant = infoClientJson.get("instant").getAsString();
 				mac = requestJson.get("MAC").getAsString();
-				//token = requestJson.get("token").getAsString();
-				//keyString = requestJson.get("SessionKey").getAsString();
-/**
-				byte[] keyBytes = decryptCipher.doFinal(Base64.getDecoder().decode(keyString));
-				byte[] ivBytes = Arrays.copyOfRange(keyBytes, keyBytes.length-16, keyBytes.length);
-				keyBytes = Arrays.copyOfRange(keyBytes, 0, keyBytes.length-16);
-				SecretKey symKey = new SecretKeySpec(keyBytes, 0, keyBytes.length, "AES");
-				IvParameterSpec iv = new IvParameterSpec(ivBytes);
-				symCipher.init(Cipher.DECRYPT_MODE, symKey, iv);
-*/
+
 				String response = "failed";
 				String publicClientPath = "keys/" + from + "_public_key.der";
 				pubClientKey = readPublic(publicClientPath);
@@ -196,22 +181,11 @@ public class Bank {
 				} else {
 					System.out.printf("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes));
 				}
-/**
-				String tok = new String(decryptCipher.doFinal(Base64.getDecoder().decode(token)));
-				if (inst.compareTo(Instant.parse(tok)) > 0) {
-					System.out.println("Old message resent!");
-					response = "failed";
-				} else {
-					System.out.println("Confirmed new request.");
-				}
-*/
-				//client = new String(symCipher.doFinal(Base64.getDecoder().decode(client)));
-				//String bodyDec = new String(symCipher.doFinal(Base64.getDecoder().decode(body)));
+
 				System.out.printf("Message to '%s', from '%s':%n%s%n", to, from, body);
 				System.out.println("response body = " + response);
 
 				decryptCipher.init(Cipher.ENCRYPT_MODE, privKey);
-				//symCipher.init(Cipher.ENCRYPT_MODE, symKey, iv);
 				inst = Instant.now().plus(15, ChronoUnit.MINUTES);
 
 				// Create response message
@@ -225,14 +199,9 @@ public class Bank {
 
 				responseJson.add("info", infoJson);
 
-				//byte[] cipheredBody = symCipher.doFinal(response.getBytes());
-				//String bodyEnc = Base64.getEncoder().encodeToString(cipheredBody);
-
 				msgDig.update(infoJson.toString().getBytes());
 				String ins = Base64.getEncoder().encodeToString(decryptCipher.doFinal(msgDig.digest()));
 				responseJson.addProperty("MAC", ins);
-				//String sentToken = Base64.getEncoder().encodeToString(symCipher.doFinal(inst.toString().getBytes()));
-				//responseJson.addProperty("Token", sentToken);
 
 				System.out.println("Response message: " + responseJson);
 
