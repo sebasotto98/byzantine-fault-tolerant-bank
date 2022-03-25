@@ -52,37 +52,67 @@ public class Client {
         PublicKey bankPublicKey = readPublic("keys/bank_public_key.der");
         PublicKey publicKey = null;
         PrivateKey privateKey = null;
+        String username = null;
+        String publicKeyPath = null;
+        String privateKeyPath = null;
         Scanner sc = new Scanner(System.in);
+
+        int bankResponse = 0;
+
         int ch = 0;
         while (ch!=6) {
             System.out.println("\n ***BFTB***");
             System.out.println("1. Open Account \n2. Send amount \n3. Check account \n4. Receive amount \n5. Audit account \n6. Exit ");
             System.out.println("Please enter your choice: ");
             ch = sc.nextInt();
+            sc.nextLine();//flush
             switch (ch) {
                 case 1:
                     System.out.println("Please input username (to fetch public and private key).");
-                    sc.nextLine();
-                    String username = sc.nextLine();
-                    String publicKeyPath = "keys/"+username+"_public_key.der";
-                    String privateKeyPath = "keys/"+username+"_private_key.der";
+                    username = sc.nextLine();
+                    publicKeyPath = "keys/"+username+"_public_key.der";
+                    privateKeyPath = "keys/"+username+"_private_key.der";
+
                     publicKey = readPublic(publicKeyPath);
                     privateKey = readPrivate(privateKeyPath);
-                    int accountOpened = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID);
+                    bankResponse = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID);
                     requestID++;
-                    if(accountOpened == API.CORRECT) {
+                    if(bankResponse == API.CORRECT) {
                         System.out.println("Account opened successfully!");
-                    } else if(accountOpened == API.FAIL) {
+                    } else if(bankResponse == API.FAIL) {
                         System.out.println("Failed to open account.");
                     }
                     publicKey = null;
                     privateKey = null;
                     break;
                 case 2:
-                    PublicKey sourceKey = null;
-                    PublicKey destKey = null;
-                    float amount = 0;
-                    api.sendAmount(sourceKey, destKey, amount);
+                    System.out.println("Please input username (to fetch public and private key).");
+                    username = sc.nextLine();
+                    publicKeyPath = "keys/"+username+"_public_key.der";
+                    privateKeyPath = "keys/"+username+"_private_key.der";
+                    publicKey = readPublic(publicKeyPath);
+                    privateKey = readPrivate(privateKeyPath);
+                    
+                    System.out.println("Please input username of receiver account (to fetch public key).");
+                    String usernameDest = sc.nextLine();
+                    //irrelevant???
+                    publicKeyPath = "keys/" + usernameDest + "_public_key.der";
+                    PublicKey destKey = readPublic(publicKeyPath);
+
+                    System.out.println("How much do you want to transfer?");
+                    float amount = sc.nextFloat();
+                    sc.nextLine(); //flush
+                    bankResponse = api.sendAmount(publicKey, privateKey, destKey, port, bankPort, bankAddress, bankPublicKey, requestID, username, amount, usernameDest);
+                    requestID++;
+
+                    if(bankResponse == API.CORRECT) {
+                        System.out.println("Transaction waiting for receiver approval!");
+                    } else if(bankResponse == API.FAIL) {
+                        System.out.println("Failed to send amount!");
+                    }
+
+                    publicKey = null;
+                    privateKey = null;
                     break;
                 case 3:
                     api.checkAccount(publicKey);

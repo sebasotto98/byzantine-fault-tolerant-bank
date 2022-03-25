@@ -37,6 +37,8 @@ public class Bank {
 	 */
 	private static final int BUFFER_SIZE = (64 * 1024 - 1) - 8 - 20;
 
+	private static final int INITIAL_ACCOUNT_BALANCE = 1000;
+
 	public static KeyPair read(String publicKeyPath, String privateKeyPath) throws GeneralSecurityException, IOException {
         System.out.println("Reading public key from file " + publicKeyPath + " ...");
         FileInputStream pubFis = new FileInputStream(publicKeyPath);
@@ -96,12 +98,22 @@ public class Bank {
 		return new IvParameterSpec(initVec);
 	}
 
-	private static String setResponse(String body, String username) {
-		if(body.equals(ClientAction.OPEN_ACCOUNT.getLabel())) {
-			writeToCSV("csv_files/clients.csv", new String[]{username, "1000", "1000"});
-			return "AccountCreated";
+	private static String setResponse(String[] bodyArray, String username) {
+		if(bodyArray[0].equals(ActionLabel.OPEN_ACCOUNT.getLabel())) {
+			writeToCSV("csv_files/clients.csv", new String[]{username, Integer.toString(INITIAL_ACCOUNT_BALANCE),
+					Integer.toString(INITIAL_ACCOUNT_BALANCE)});
+
+			return ActionLabel.ACCOUNT_CREATED.getLabel();
+		} else if(bodyArray[0].equals(ActionLabel.SEND_AMOUNT.getLabel())) { // 1 - amount, 2 - receiver
+			return ActionLabel.TODO.getLabel();
+		} else if(bodyArray[0].equals(ActionLabel.CHECK_ACCOUNT.getLabel())) {
+			return ActionLabel.TODO.getLabel();
+		} else if(bodyArray[0].equals(ActionLabel.RECEIVE_AMOUNT.getLabel())) {
+			return ActionLabel.TODO.getLabel();
+		} else if(bodyArray[0].equals(ActionLabel.AUDIT_ACCOUNT.getLabel())) {
+			return ActionLabel.TODO.getLabel();
 		} else {
-			return "UNKNOWN_FUNCTION";
+			return ActionLabel.UNKNOWN_FUNCTION.getLabel();
 		}
 	}
 
@@ -162,6 +174,8 @@ public class Bank {
 				instant = infoClientJson.get("instant").getAsString();
 				mac = requestJson.get("MAC").getAsString();
 
+				String[] bodyArray = body.split(",");
+
 				String response = "failed";
 				String publicClientPath = "keys/" + from + "_public_key.der";
 				pubClientKey = readPublic(publicClientPath);
@@ -176,7 +190,7 @@ public class Bank {
 				}
 				msgDig.update(infoClientJson.toString().getBytes());
 				if (Arrays.equals(macBytes, msgDig.digest())) {
-					response = setResponse(body, from);
+					response = setResponse(bodyArray, from);
 					System.out.println("Confirmed content integrity.");
 				} else {
 					System.out.printf("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes));

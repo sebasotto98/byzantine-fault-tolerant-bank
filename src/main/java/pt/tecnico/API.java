@@ -17,7 +17,6 @@ import javax.crypto.Cipher;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.opencsv.CSVWriter;
 
 public class API {
 
@@ -32,9 +31,10 @@ public class API {
                             int serverPort, InetAddress serverAddress, PublicKey bankPublic, String username, int requestID)
                             throws GeneralSecurityException, IOException  {
 
-        String body = sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, "OpenAccount", requestID);
+        String body = sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic,
+				username, ActionLabel.OPEN_ACCOUNT.getLabel(), requestID);
 		
-		if (body.equals("AccountCreated")) {
+		if (body.equals(ActionLabel.ACCOUNT_CREATED.getLabel())) {
             return CORRECT;
         } else {
             return FAIL;
@@ -42,8 +42,19 @@ public class API {
 
     }
 
-    public void sendAmount(PublicKey source, PublicKey dest, float amount) {
+    public int sendAmount(PublicKey sourcePublicKey, PrivateKey sourcePrivateKey, PublicKey destPublicKey, int clientPort,
+						   int serverPort, InetAddress serverAddress, PublicKey bankPublic, int requestID, String username, float amount, String usernameDest)
+			throws GeneralSecurityException, IOException {
 
+    	String bodyText = ActionLabel.SEND_AMOUNT.getLabel() + "," + amount + "," + usernameDest;
+
+		String response = sendMessageAndReceiveBody(sourcePublicKey, sourcePrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
+
+		if (response.equals(ActionLabel.PENDING_TRANSACTION.getLabel())) {
+			return CORRECT;
+		} else {
+			return FAIL;
+		}
     }
 
     public void checkAccount(PublicKey key) {
