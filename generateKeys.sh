@@ -15,7 +15,7 @@ openssl x509 -req -days 365 -in bftb.csr -CA server.crt -CAkey server.key -out b
 
 # Generating key pairs for all clients
 
-for var in client1 client2 client3 client4 client5
+for var in client1 client2 client3 client4 client5 client6
 do
 	openssl genrsa -out $var\_private_key.key
 	openssl rsa -in $var\_private_key.key -pubout > $var\_public_key.key

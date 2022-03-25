@@ -45,10 +45,10 @@ public class Client {
         int bankPort = 9999;
         InetAddress bankAddress = InetAddress.getLocalHost();
 
-        PublicKey publicKey = readPublic("keys/pis_public_key.der");
-        PrivateKey privateKey = readPrivate("keys/pis_private_key.der");
-        PublicKey bankPublicKey = readPublic("keys/bank_public_key.der");
 
+        PublicKey bankPublicKey = readPublic("keys/bank_public_key.der");
+        PublicKey publicKey = null;
+        PrivateKey privateKey = null;
         Scanner sc = new Scanner(System.in);
         int ch = 0;
         while (ch!=6) {
@@ -58,12 +58,21 @@ public class Client {
             ch = sc.nextInt();
             switch (ch) {
                 case 1:
-                    int accountOpened = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey);
+                    System.out.println("What's the username? (to fetch public and private key");
+                    sc.nextLine();
+                    String username = sc.nextLine();
+                    String publicKeyPath = "keys/"+username+"_public_key.der";
+                    String privateKeyPath = "keys/"+username+"_private_key.der";
+                    publicKey = readPublic(publicKeyPath);
+                    privateKey = readPrivate(privateKeyPath);
+                    int accountOpened = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username);
                     if(accountOpened == API.CORRECT) {
                         System.out.println("Account opened successfully!");
                     } else if(accountOpened == API.FAIL) {
                         System.out.println("Failed to open account.");
                     }
+                    publicKey = null;
+                    privateKey = null;
                     break;
                 case 2:
                     PublicKey sourceKey = null;

@@ -29,10 +29,10 @@ public class API {
 	private final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 
     public int openAccount(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort,
-                            int serverPort, InetAddress serverAddress, PublicKey bankPublic) 
+                            int serverPort, InetAddress serverAddress, PublicKey bankPublic, String username)
                             throws GeneralSecurityException, IOException  {
 
-        String body = sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, "OpenAccount");
+        String body = sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, "OpenAccount");
 		
 		if (body.equals("AccountCreated")) {
 
@@ -107,7 +107,7 @@ public class API {
 	}
 
 	private String sendMessageAndReceiveBody(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort,
-											int serverPort, InetAddress serverAddress, PublicKey bankPublic, String bodyText) 
+											int serverPort, InetAddress serverAddress, PublicKey bankPublic, String username, String bodyText) 
 											throws GeneralSecurityException, IOException  {
 		
 		// Timestamps are in UTC
@@ -143,7 +143,7 @@ public class API {
 		
         JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
         infoJson.addProperty("to", "BFTB");
-		infoJson.addProperty("from", accountPublicKey.getEncoded().toString());
+		infoJson.addProperty("from", username);
 
         //byte[] cipheredBody = symCipher.doFinal(bodyText.getBytes());
         //String bodyEnc = Base64.getEncoder().encodeToString(cipheredBody);
@@ -200,12 +200,13 @@ public class API {
 		socket.close();
 		System.out.println("Socket closed");
 
+
 		if (messageCheck == CORRECT){
 			return body;
 		} else{
 			return "Failed";
 		}
+    }
 
-	}
 
 }
