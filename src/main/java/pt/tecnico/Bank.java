@@ -97,7 +97,7 @@ public class Bank {
 	}
 
 	private static String setResponse(String body, String username) {
-		if(body.equals("OpenAccount")) {
+		if(body.equals(ClientAction.OPEN_ACCOUNT.getLabel())) {
 			writeToCSV("csv_files/clients.csv", new String[]{username, "1000", "1000"});
 			return "AccountCreated";
 		} else {

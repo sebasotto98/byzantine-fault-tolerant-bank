@@ -10,6 +10,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\csv_files\pending_transaction_history.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\csv_files\transaction_history.csv">
           <value>
             <Attribute>
