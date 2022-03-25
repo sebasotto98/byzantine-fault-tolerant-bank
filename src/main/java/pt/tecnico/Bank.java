@@ -1,5 +1,6 @@
 package pt.tecnico;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -102,7 +103,7 @@ public class Bank {
 		if(bodyArray[0].equals(ActionLabel.OPEN_ACCOUNT.getLabel())) {
 			writeToCSV("csv_files/clients.csv", new String[]{username, Integer.toString(INITIAL_ACCOUNT_BALANCE),
 					Integer.toString(INITIAL_ACCOUNT_BALANCE)});
-
+			createTransactionHistoryFiles(username);
 			return ActionLabel.ACCOUNT_CREATED.getLabel();
 		} else if(bodyArray[0].equals(ActionLabel.SEND_AMOUNT.getLabel())) { // 1 - amount, 2 - receiver
 			return ActionLabel.TODO.getLabel();
@@ -114,6 +115,31 @@ public class Bank {
 			return ActionLabel.TODO.getLabel();
 		} else {
 			return ActionLabel.UNKNOWN_FUNCTION.getLabel();
+		}
+	}
+
+	private static void createTransactionHistoryFiles(String username) {
+		File completeTransactionHistoryFile = new File("csv_files/" + username + "_complete_transaction_history.csv");
+		File pendingTransactionHistoryFile = new File("csv_files/" + username + "_pending_transaction_history.csv");
+		if(!completeTransactionHistoryFile.exists()) {
+			try {
+				completeTransactionHistoryFile.createNewFile();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		if(!pendingTransactionHistoryFile.exists()) {
+			try {
+				pendingTransactionHistoryFile.createNewFile();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		try {
+			completeTransactionHistoryFile.createNewFile();
+			pendingTransactionHistoryFile.createNewFile();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
