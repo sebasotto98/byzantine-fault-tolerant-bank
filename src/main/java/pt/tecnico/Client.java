@@ -105,10 +105,14 @@ public class Client {
                     bankResponse = api.sendAmount(publicKey, privateKey, destKey, port, bankPort, bankAddress, bankPublicKey, requestID, username, amount, usernameDest);
                     requestID++;
 
-                    if(bankResponse.equals(ActionLabel.SUCCESS.getLabel())) {
+                    if(bankResponse.equals(ActionLabel.PENDING_TRANSACTION.getLabel())) {
                         System.out.println("Transaction waiting for receiver approval!");
                     } else if(bankResponse.equals(ActionLabel.FAIL.getLabel())) {
-                        System.out.println("Failed to send amount!");
+                        System.out.println("Failed to send amount. An error occurred.");
+                    } else if(bankResponse.equals(ActionLabel.INSUFFICIENT_AMOUNT.getLabel())) {
+                        System.out.println("Insufficient available amount on sender account.");
+                    } else if(bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
+                        System.out.println("Sender/Receiver account not found!");
                     }
 
                     publicKey = null;

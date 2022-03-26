@@ -46,13 +46,7 @@ public class API {
 
     	String bodyText = ActionLabel.SEND_AMOUNT.getLabel() + "," + amount + "," + usernameDest;
 
-		String response = sendMessageAndReceiveBody(sourcePublicKey, sourcePrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
-
-		if (response.equals(ActionLabel.PENDING_TRANSACTION.getLabel())) {
-			return ActionLabel.SUCCESS.getLabel();
-		} else {
-			return ActionLabel.FAIL.getLabel();
-		}
+		return sendMessageAndReceiveBody(sourcePublicKey, sourcePrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
     }
 
     public void checkAccount(PublicKey key) {

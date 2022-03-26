@@ -14,6 +14,9 @@ public enum ActionLabel {
     //response labels
     ACCOUNT_CREATED("AccountCreated"),
     PENDING_TRANSACTION("PendingTransaction"),
+    INSUFFICIENT_AMOUNT("InsufficientAmount"),
+    CLIENT_NOT_FOUND("ClientNotFound"),
+
 
     //generic labels
     FAIL("Fail"),
