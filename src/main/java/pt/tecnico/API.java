@@ -49,8 +49,13 @@ public class API {
 		return sendMessageAndReceiveBody(sourcePublicKey, sourcePrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
     }
 
-    public void checkAccount(PublicKey key) {
+    public String checkAccount(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort, int serverPort,
+							   InetAddress serverAddress, PublicKey bankPublic, String username, int requestID, String owner, PublicKey ownerKey)
+			throws GeneralSecurityException, IOException {
 
+    	String bodyText = ActionLabel.CHECK_ACCOUNT.getLabel() + "," + owner;
+
+		return sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
     }
 
     public void receiveAmount(PublicKey key) {
