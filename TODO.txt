@@ -4,3 +4,4 @@ Functions:
 
 others: 
 	protect private key with KeyStore (lab01_Java_API.pdf)
+	replace System.out.println with logger
