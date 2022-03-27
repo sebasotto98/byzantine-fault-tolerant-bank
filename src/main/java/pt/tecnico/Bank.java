@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Hashtable;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
@@ -36,6 +37,9 @@ public class Bank {
 	 * protocol, is 65,507 bytes (65,535 − 8 byte UDP header − 20 byte IP header).
 	 */
 	private static final int BUFFER_SIZE = (64 * 1024 - 1) - 8 - 20;
+	// Hash and (de)cipher algorithms initialization
+	public static final String DIGEST_ALGO = "SHA-256";
+	public static final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 
 	public static KeyPair read(String publicKeyPath, String privateKeyPath) throws GeneralSecurityException, IOException {
         System.out.println("Reading public key from file " + publicKeyPath + " ...");
@@ -113,10 +117,10 @@ public class Bank {
 		}
 		final int port = Integer.parseInt(args[0]);
 		Instant inst;
+		Hashtable<String, Integer> requestIds = new Hashtable<String, Integer>();
 
-		// Hash and (de)cipher algorithms initialization
-		final String DIGEST_ALGO = "SHA-256";
-		final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
+
+		
 
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 		Cipher decryptCipher = Cipher.getInstance(CIPHER_ALGO);
@@ -151,40 +155,12 @@ public class Bank {
 				String clientText = new String(clientData, 0, clientLength);
 				System.out.println("Received request: " + clientText);
 
-				// Parse JSON and extract arguments
-				JsonObject requestJson = JsonParser.parseString(clientText).getAsJsonObject();
-				String from, body, to, mac, client, instant, token, keyString;
 
-				JsonObject infoClientJson = requestJson.getAsJsonObject("info");
-				to = infoClientJson.get("to").getAsString();
-				from = infoClientJson.get("from").getAsString();
-				body = infoClientJson.get("body").getAsString();
-				instant = infoClientJson.get("instant").getAsString();
-				mac = requestJson.get("MAC").getAsString();
+				// Parse message and check for integrity and authenticity, and return response
+				String response = receiveMessageAndCheckSafety(clientText, requestIds);
 
-				String response = "failed";
-				String publicClientPath = "keys/" + from + "_public_key.der";
-				pubClientKey = readPublic(publicClientPath);
-				decryptCipher.init(Cipher.DECRYPT_MODE, privKey);
-				signCipher.init(Cipher.DECRYPT_MODE, pubClientKey);
 
-				byte[] macBytes = null;
-				try {
-					macBytes = signCipher.doFinal(Base64.getDecoder().decode(mac));
-				} catch (Exception e) {
-					System.out.println("Entity not authenticated!");
-				}
-				msgDig.update(infoClientJson.toString().getBytes());
-				if (Arrays.equals(macBytes, msgDig.digest())) {
-					response = setResponse(body, from);
-					System.out.println("Confirmed content integrity.");
-				} else {
-					System.out.printf("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes));
-				}
-
-				System.out.printf("Message to '%s', from '%s':%n%s%n", to, from, body);
-				System.out.println("response body = " + response);
-
+				// Response part of function
 				decryptCipher.init(Cipher.ENCRYPT_MODE, privKey);
 				inst = Instant.now().plus(15, ChronoUnit.MINUTES);
 
@@ -193,7 +169,7 @@ public class Bank {
 
 				JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
 				infoJson.addProperty("from", "BFTB");
-				infoJson.addProperty("to", from);
+				infoJson.addProperty("to", "from");
 				infoJson.addProperty("instant", inst.toString());
 				infoJson.addProperty("body", response);
 
@@ -225,5 +201,62 @@ public class Bank {
 		catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+
+
+	private static String receiveMessageAndCheckSafety(String clientText, Hashtable<String, Integer> requestIds){
+		PublicKey pubKey = readPublic("keys/bank_public_key.der");
+		PrivateKey privKey = readPrivate("keys/bank_private_key.der");
+		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
+		Cipher decryptCipher = Cipher.getInstance(CIPHER_ALGO);
+		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
+		
+
+		// Parse JSON and extract arguments
+		JsonObject requestJson = JsonParser.parseString(clientText).getAsJsonObject();
+		String from, body, to, mac, client, instant, token, keyString;
+
+		JsonObject infoClientJson = requestJson.getAsJsonObject("info");
+		to = infoClientJson.get("to").getAsString();
+		from = infoClientJson.get("from").getAsString();
+		body = infoClientJson.get("body").getAsString();
+		instant = infoClientJson.get("instant").getAsString();
+		mac = requestJson.get("MAC").getAsString();
+
+
+
+		Integer idReceived = Integer.parseInt(instant);
+		if (requestIds.get(from).equals(null)){
+			requestIds.put(from, idReceived);
+		} else if (Integer.compare(idReceived, requestIds.get(from)) <= 0 ){
+			System.out.println("Message is duplicate, shall be ignored");  // TODO ignore execution of method
+		}
+
+		String response = "failed";
+		String publicClientPath = "keys/" + from + "_public_key.der";
+		PublicKey pubClientKey = readPublic(publicClientPath);
+		decryptCipher.init(Cipher.DECRYPT_MODE, privKey);
+		signCipher.init(Cipher.DECRYPT_MODE, pubClientKey);
+
+		byte[] macBytes = null;
+		try {
+			macBytes = signCipher.doFinal(Base64.getDecoder().decode(mac));
+		} catch (Exception e) {
+			System.out.println("Entity not authenticated!"); // TODO ignore execution of message
+			return "failed";
+		}
+		msgDig.update(infoClientJson.toString().getBytes());
+		if (Arrays.equals(macBytes, msgDig.digest())) {
+			response = setResponse(body, from);
+			System.out.println("Confirmed content integrity.");
+		} else {
+			System.out.printf("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes)); // TODO ignore execution of message
+			return "failed";
+		}
+
+		System.out.printf("Message to '%s', from '%s':%n%s%n", to, from, body);
+		System.out.println("response body = " + response);
+
+		return response;
 	}
 }
