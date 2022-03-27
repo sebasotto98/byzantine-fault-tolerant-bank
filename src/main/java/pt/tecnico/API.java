@@ -37,7 +37,6 @@ public class API {
         } else {
             return ActionLabel.FAIL.getLabel();
         }
-
     }
 
     public String sendAmount(PublicKey sourcePublicKey, PrivateKey sourcePrivateKey, PublicKey destPublicKey, int clientPort,
