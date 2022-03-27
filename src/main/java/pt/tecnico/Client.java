@@ -17,6 +17,8 @@ public class Client {
 
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getSimpleName());
 
+    private static final int MAX_RETRIES = 5;
+
     public static PublicKey readPublic(String publicKeyPath) throws GeneralSecurityException, IOException {
         System.out.println("Reading public key from file " + publicKeyPath + " ...");
         FileInputStream pubFis = new FileInputStream(publicKeyPath);
@@ -91,6 +93,7 @@ public class Client {
                     try {
                         publicKey = readPublic(publicKeyPath);
                         privateKey = readPrivate(privateKeyPath);
+                        int numberOfTries = 0;
                         do {
                             bankResponse = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID);
                             if(bankResponse != null) {
@@ -102,7 +105,8 @@ public class Client {
                             } else {
                                 bankResponse = ActionLabel.FAIL.getLabel();
                             }
-                        } while((!bankResponse.equals(ActionLabel.SUCCESS.getLabel())));
+                            numberOfTries++;
+                        } while((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
                         requestID++;
                     } catch (GeneralSecurityException | IOException e) {
                         logger.error("Error: ", e);
@@ -130,6 +134,7 @@ public class Client {
                         float amount = sc.nextFloat();
                         sc.nextLine(); //flush
 
+                        int numberOfTries = 0;
                         do {
                             bankResponse = api.sendAmount(publicKey, privateKey, destKey, port, bankPort, bankAddress, bankPublicKey, requestID, username, amount, usernameDest);
                             if(bankResponse != null) {
@@ -145,7 +150,8 @@ public class Client {
                             } else {
                                 bankResponse = ActionLabel.FAIL.getLabel();
                             }
-                        } while((!bankResponse.equals(ActionLabel.SUCCESS.getLabel())));
+                            numberOfTries++;
+                        } while((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
                         requestID++;
                         
                     } catch (GeneralSecurityException | IOException e) {
@@ -169,6 +175,7 @@ public class Client {
                         publicKeyPath = "keys/" + owner + "_public_key.der";
                         PublicKey ownerKey = readPublic(publicKeyPath);
                         
+                        int numberOfTries = 0;
                         do {
                             bankResponse = api.checkAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID, owner, ownerKey);
                             if(bankResponse != null) {
@@ -202,7 +209,8 @@ public class Client {
                             } else {
                                 bankResponse = ActionLabel.FAIL.getLabel();
                             }
-                        } while((!bankResponse.equals(ActionLabel.SUCCESS.getLabel())));
+                            numberOfTries++;
+                        } while((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
                         requestID++;
                                                 
                     } catch (GeneralSecurityException | IOException e) {

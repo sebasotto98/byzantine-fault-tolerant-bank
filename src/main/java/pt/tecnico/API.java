@@ -5,6 +5,7 @@ import java.security.PublicKey;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
@@ -17,6 +18,8 @@ import javax.crypto.Cipher;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
+import pt.tecnico.ActionLabel;
 
 public class API {
 
@@ -114,6 +117,7 @@ public class API {
 
 		// Create socket
 		DatagramSocket socket = new DatagramSocket(clientPort);
+		socket.setSoTimeout(SOCKET_TIMEOUT*1000);
         // Create request message
 		JsonObject requestJson = JsonParser.parseString("{}").getAsJsonObject();
 		
@@ -143,7 +147,18 @@ public class API {
 		byte[] serverData = new byte[BUFFER_SIZE];
 		DatagramPacket serverPacket = new DatagramPacket(serverData, serverData.length);
 		System.out.println("Wait for response packet...");
-		socket.receive(serverPacket);
+
+		try {
+			socket.receive(serverPacket);
+		} catch (SocketTimeoutException e){
+			System.out.println("Socket timeout. Failed request!");
+			// Close socket
+			socket.close();
+			System.out.println("Socket closed");
+			return ActionLabel.FAIL.getLabel();
+		}
+
+
 		System.out.printf("Received packet from %s:%d!%n", serverPacket.getAddress(), serverPacket.getPort());
 		System.out.printf("%d bytes %n", serverPacket.getLength());
 
@@ -174,10 +189,10 @@ public class API {
 		socket.close();
 		System.out.println("Socket closed");
 
-		if (messageCheck.equals(ActionLabel.SUCCESS.getLabel())) {
-			return body;
+		if (messageCheck.equals(ActionLabel.FAIL.getLabel())) {
+			return ActionLabel.FAIL.getLabel();
 		} else{
-			return "Failed";
+			return body;
 		}
     }
 

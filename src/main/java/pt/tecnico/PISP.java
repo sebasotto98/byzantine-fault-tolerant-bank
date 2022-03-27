@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -168,7 +169,13 @@ public class PISP {
 		byte[] serverData = new byte[BUFFER_SIZE];
 		DatagramPacket serverPacket = new DatagramPacket(serverData, serverData.length);
 		System.out.println("Wait for response packet...");
-		socket.receive(serverPacket);
+		try {
+			socket.receive(serverPacket);
+		} catch (SocketTimeoutException e){
+			System.out.println("Socket timeout. Failed request!");
+			return 1;
+		}
+		
 		System.out.printf("Received packet from %s:%d!%n", serverPacket.getAddress(), serverPacket.getPort());
 		System.out.printf("%d bytes %n", serverPacket.getLength());
 
