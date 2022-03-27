@@ -28,6 +28,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.opencsv.CSVWriter;
 
+import pt.tecnico.ActionLabel;
+
 import java.sql.Timestamp;
 
 public class Bank {
@@ -400,7 +402,7 @@ public class Bank {
 
 		String[] bodyArray = body.split(",");
 
-		String response = "failed";
+		String response = ActionLabel.FAIL.getLabel();
 		String publicClientPath = "keys/" + from + "_public_key.der";
 		pubClientKey = readPublic(publicClientPath);
 		decryptCipher.init(Cipher.DECRYPT_MODE, privKey);
@@ -413,7 +415,7 @@ public class Bank {
 			requestIds.put(from, idReceived);
 		} else if (Integer.compare(idReceived, requestIds.get(from)) <= 0 ){
 			System.out.println("Message is duplicate, shall be ignored"); 
-			return response;
+			return ActionLabel.SUCCESS.getLabel();
 		}
 
 
