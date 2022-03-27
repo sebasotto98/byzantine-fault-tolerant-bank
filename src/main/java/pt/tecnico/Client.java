@@ -3,8 +3,6 @@ package pt.tecnico;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import pt.tecnico.ActionLabel;
-
 import java.io.FileInputStream;
 import java.lang.invoke.MethodHandles;
 import java.net.UnknownHostException;
@@ -60,7 +58,6 @@ public class Client {
         } catch (UnknownHostException e) {
             logger.error("Error: ", e);
         }
-
         int requestID = 0;
         API api = new API();
         PublicKey bankPublicKey = null;
@@ -76,7 +73,7 @@ public class Client {
         String privateKeyPath = null;
         Scanner sc = new Scanner(System.in);
 
-        String bankResponse = null;
+        String bankResponse;
 
         int ch = 0;
         while (ch!=6) {
@@ -92,10 +89,9 @@ public class Client {
                     publicKeyPath = "keys/"+username+"_public_key.der";
                     privateKeyPath = "keys/"+username+"_private_key.der";
                     try {
-                        
                         publicKey = readPublic(publicKeyPath);
                         privateKey = readPrivate(privateKeyPath);
-                        while(!bankResponse.equals(ActionLabel.SUCCESS.getLabel())){
+                        do {
                             bankResponse = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID);
                             if(bankResponse != null) {
                                 if (bankResponse.equals(ActionLabel.SUCCESS.getLabel())) {
@@ -103,14 +99,14 @@ public class Client {
                                 } else if (bankResponse.equals(ActionLabel.FAIL.getLabel())) {
                                     System.out.println("Failed to open account.");
                                 }
+                            } else {
+                                bankResponse = ActionLabel.FAIL.getLabel();
                             }
-                        }
+                        } while((!bankResponse.equals(ActionLabel.SUCCESS.getLabel())));
                         requestID++;
                     } catch (GeneralSecurityException | IOException e) {
                         logger.error("Error: ", e);
                     }
-                    
-                    
                     publicKey = null;
                     privateKey = null;
                     break;
@@ -133,8 +129,8 @@ public class Client {
                         System.out.println("How much do you want to transfer?");
                         float amount = sc.nextFloat();
                         sc.nextLine(); //flush
-                        
-                        while(!bankResponse.equals(ActionLabel.SUCCESS.getLabel())){
+
+                        do {
                             bankResponse = api.sendAmount(publicKey, privateKey, destKey, port, bankPort, bankAddress, bankPublicKey, requestID, username, amount, usernameDest);
                             if(bankResponse != null) {
                                 if (bankResponse.equals(ActionLabel.PENDING_TRANSACTION.getLabel())) {
@@ -146,8 +142,10 @@ public class Client {
                                 } else if (bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
                                     System.out.println("Sender/Receiver account not found!");
                                 }
+                            } else {
+                                bankResponse = ActionLabel.FAIL.getLabel();
                             }
-                        }
+                        } while((!bankResponse.equals(ActionLabel.SUCCESS.getLabel())));
                         requestID++;
                         
                     } catch (GeneralSecurityException | IOException e) {
@@ -170,9 +168,8 @@ public class Client {
 
                         publicKeyPath = "keys/" + owner + "_public_key.der";
                         PublicKey ownerKey = readPublic(publicKeyPath);
-
                         
-                        while(!bankResponse.equals(ActionLabel.SUCCESS.getLabel())){
+                        do {
                             bankResponse = api.checkAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID, owner, ownerKey);
                             if(bankResponse != null) {
                                 if (bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
@@ -189,7 +186,7 @@ public class Client {
                                     System.out.println("Pending transactions associated with the account: ");
                                     for (int i = 1; i < messages.length; i++) {
                                         String[] s = messages[i].split(",");
-        
+
                                         String str = "At " +
                                                 s[0] +
                                                 " user " +
@@ -202,8 +199,10 @@ public class Client {
                                         System.out.println(str);
                                     }
                                 }
+                            } else {
+                                bankResponse = ActionLabel.FAIL.getLabel();
                             }
-                        }
+                        } while((!bankResponse.equals(ActionLabel.SUCCESS.getLabel())));
                         requestID++;
                                                 
                     } catch (GeneralSecurityException | IOException e) {

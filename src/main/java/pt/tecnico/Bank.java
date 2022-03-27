@@ -295,8 +295,6 @@ public class Bank {
 		Instant inst;
 
 		// Hash and (de)cipher algorithms initialization
-		
-
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 		Cipher decryptCipher = Cipher.getInstance(CIPHER_ALGO);
 
@@ -308,7 +306,6 @@ public class Bank {
 
 		// Create server socket
 		System.out.printf("Server will receive packets on port %d %n", port);
-
 		
 		// Wait for client packets 
 		while (true) {
@@ -331,9 +328,7 @@ public class Bank {
 				String clientText = new String(clientData, 0, clientLength);
 				System.out.println("Received request: " + clientText);
 
-				
-
-				String response = receiveMessageAndCheckSafety(clientText);
+				String[] response = receiveMessageAndCheckSafety(clientText);
 
 				decryptCipher.init(Cipher.ENCRYPT_MODE, privKey);
 				inst = Instant.now().plus(15, ChronoUnit.MINUTES);
@@ -343,9 +338,9 @@ public class Bank {
 
 				JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
 				infoJson.addProperty("from", "BFTB");
-				infoJson.addProperty("to", "from");
+				infoJson.addProperty("to", response[1]);
 				infoJson.addProperty("instant", inst.toString());
-				infoJson.addProperty("body", response);
+				infoJson.addProperty("body", response[0]);
 
 				responseJson.add("info", infoJson);
 
@@ -380,14 +375,15 @@ public class Bank {
 		}
 	}
 
-	private static String receiveMessageAndCheckSafety(String clientText){
+	private static String[] receiveMessageAndCheckSafety(String clientText) throws GeneralSecurityException, IOException {
+		String[] response = new String[2];
+
 		PublicKey pubKey = readPublic("keys/bank_public_key.der");
 		PrivateKey privKey = readPrivate("keys/bank_private_key.der");
 		PublicKey pubClientKey = null;
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 		Cipher decryptCipher = Cipher.getInstance(CIPHER_ALGO);
 		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
-		
 
 		// Parse JSON and extract arguments
 		JsonObject requestJson = JsonParser.parseString(clientText).getAsJsonObject();
@@ -402,22 +398,19 @@ public class Bank {
 
 		String[] bodyArray = body.split(",");
 
-		String response = ActionLabel.FAIL.getLabel();
+		response[0] = ActionLabel.FAIL.getLabel();
 		String publicClientPath = "keys/" + from + "_public_key.der";
 		pubClientKey = readPublic(publicClientPath);
 		decryptCipher.init(Cipher.DECRYPT_MODE, privKey);
 		signCipher.init(Cipher.DECRYPT_MODE, pubClientKey);
 
-
-
-		Integer idReceived = Integer.parseInt(instant);
-		if (requestIds.get(from).equals(null)){
+		int idReceived = Integer.parseInt(instant);
+		if (requestIds.get(from) == null){
 			requestIds.put(from, idReceived);
 		} else if (Integer.compare(idReceived, requestIds.get(from)) <= 0 ){
 			System.out.println("Message is duplicate, shall be ignored"); 
-			return ActionLabel.SUCCESS.getLabel();
+			response[0] = ActionLabel.SUCCESS.getLabel();
 		}
-
 
 		byte[] macBytes = null;
 		try {
@@ -434,10 +427,11 @@ public class Bank {
 			return response;
 		}
 
-		response = setResponse(bodyArray, from);
+		response[0] = setResponse(bodyArray, from);
+		response[1] = from;
 
 		System.out.printf("Message to '%s', from '%s':%n%s%n", to, from, body);
-		System.out.println("response body = " + response);
+		System.out.println("response body = " + response[0]);
 
 		return response;
 	}
