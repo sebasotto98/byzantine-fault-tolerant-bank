@@ -1,8 +1,6 @@
 package pt.tecnico;
 
-import java.io.FileInputStream;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -17,9 +15,11 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Hashtable;
+import java.util.List;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
@@ -27,6 +27,8 @@ import javax.crypto.spec.IvParameterSpec;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.opencsv.CSVWriter;
+
+import java.sql.Timestamp;
 
 public class Bank {
 
@@ -37,9 +39,14 @@ public class Bank {
 	 * protocol, is 65,507 bytes (65,535 − 8 byte UDP header − 20 byte IP header).
 	 */
 	private static final int BUFFER_SIZE = (64 * 1024 - 1) - 8 - 20;
-	// Hash and (de)cipher algorithms initialization
-	public static final String DIGEST_ALGO = "SHA-256";
-	public static final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
+
+	private static final int INITIAL_ACCOUNT_BALANCE = 1000;
+
+	private static final String DIGEST_ALGO = "SHA-256";
+	private static final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
+
+	private static Hashtable<String, Integer> requestIds = new Hashtable<String, Integer>();
+
 
 	public static KeyPair read(String publicKeyPath, String privateKeyPath) throws GeneralSecurityException, IOException {
         System.out.println("Reading public key from file " + publicKeyPath + " ...");
@@ -100,12 +107,179 @@ public class Bank {
 		return new IvParameterSpec(initVec);
 	}
 
-	private static String setResponse(String body, String username) {
-		if(body.equals("OpenAccount")) {
-			writeToCSV("csv_files/clients.csv", new String[]{username, "1000", "1000"});
-			return "AccountCreated";
+	private static String setResponse(String[] bodyArray, String username) {
+
+		if(bodyArray[0].equals(ActionLabel.OPEN_ACCOUNT.getLabel())) {
+			writeToCSV("csv_files/clients.csv", new String[]{username, Integer.toString(INITIAL_ACCOUNT_BALANCE),
+					Integer.toString(INITIAL_ACCOUNT_BALANCE)}, true);
+			createTransactionHistoryFiles(username);
+			return ActionLabel.ACCOUNT_CREATED.getLabel();
+		} else if(bodyArray[0].equals(ActionLabel.SEND_AMOUNT.getLabel())) { // 1 - amount, 2 - receiver
+
+			String amount = bodyArray[1];
+			String receiver = bodyArray[2];
+
+			return handleSendAmountRequest(username, amount, receiver);
+
+		} else if(bodyArray[0].equals(ActionLabel.CHECK_ACCOUNT.getLabel())) {
+			return handleCheckAccountRequest(bodyArray[1]);
+		} else if(bodyArray[0].equals(ActionLabel.RECEIVE_AMOUNT.getLabel())) {
+			return ActionLabel.TODO.getLabel();
+		} else if(bodyArray[0].equals(ActionLabel.AUDIT_ACCOUNT.getLabel())) {
+			return ActionLabel.TODO.getLabel();
 		} else {
-			return "UNKNOWN_FUNCTION";
+			return ActionLabel.UNKNOWN_FUNCTION.getLabel();
+		}
+	}
+
+	private static String handleCheckAccountRequest(String owner){
+
+		String clientsFilePath = "csv_files/clients.csv";
+		List<String[]> clients = new ArrayList<>();
+		FileReader fileReader;
+		BufferedReader reader;
+		String[] client = null;
+		try {
+			fileReader = new FileReader(clientsFilePath);
+			reader = new BufferedReader(fileReader);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				client = line.split(",");
+				if(client[0].equals(owner)){
+					break;
+				}
+			}
+			fileReader.close();
+			reader.close();
+		} catch (IOException e) {
+			System.out.println("checkAccount: Error reading clients file.");
+			return ActionLabel.FAIL.getLabel();
+		}
+
+		if(client == null){
+			return ActionLabel.CLIENT_NOT_FOUND.getLabel();
+		} else {
+			StringBuilder response = new StringBuilder();
+			for(int i = 0; i < client.length; i++){
+				String s = client[i];
+				response.append(s);
+				if(i != client.length - 1) { //last one doesn't need ","
+					response.append(",");
+				}
+			}
+			String ownerPendingTransactionsPath = "csv_files/" + owner + "_pending_transaction_history.csv";
+			try{
+				fileReader = new FileReader(ownerPendingTransactionsPath);
+				reader = new BufferedReader(fileReader);
+				String line;
+
+				while ((line = reader.readLine()) != null) { //transactions separated with ";"
+					response.append(";");
+					response.append(line);
+				}
+				fileReader.close();
+				reader.close();
+
+				return response.toString();
+			} catch (IOException e) {
+				System.out.println("checkAccount: Error reading pending transactions file.");
+				return ActionLabel.FAIL.getLabel();
+			}
+		}
+	}
+
+	private static String handleSendAmountRequest(String username, String amount, String receiver){
+		//get account information
+		String[] client = null;
+
+		String clientsFilePath = "csv_files/clients.csv";
+		List<String[]> clients = new ArrayList<>();
+		FileReader fileReader;
+		BufferedReader reader;
+		try {
+			fileReader = new FileReader(clientsFilePath);
+			reader = new BufferedReader(fileReader);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				client = line.split(",");
+				clients.add(client);
+			}
+			fileReader.close();
+			reader.close();
+		} catch (IOException e) {
+			System.out.println("sendAmount: Error reading clients file.");
+			return ActionLabel.FAIL.getLabel();
+		}
+
+		boolean senderFound = false;
+		boolean receiverFound = false;
+		for(String[] c: clients){
+			System.out.print("c[0]:");
+			System.out.println("|" + c[0] + "|");
+			if(c[0].equals(username)){
+				//c -> 0-username, 1-available amount, 2-book
+				//check available amount
+				float final_amount = Float.parseFloat(c[1]) - Float.parseFloat(amount);
+				if(final_amount >= 0){
+					c[1] = String.valueOf(final_amount);
+					senderFound = true;
+				} else {
+					return ActionLabel.INSUFFICIENT_AMOUNT.getLabel();
+				}
+			} else if(c[0].equals(receiver)){
+				receiverFound = true;
+			}
+		}
+
+		if(receiverFound && senderFound){
+			//this boolean is used to overwrite file. First call to write overwrites files and following call just append
+			boolean flag = false;
+			for(String[] c: clients){
+				writeToCSV(clientsFilePath,c,flag); //rewrite clients file
+				flag = true;
+			}
+
+			String receiverPendingTransactionsFile = "csv_files/" + receiver + "_pending_transaction_history.csv";
+			String senderPendingTransactionsFile = "csv_files/" + username + "_pending_transaction_history.csv";
+
+			String[] transaction = new String[4];
+			transaction[0] = new Timestamp(System.currentTimeMillis()).toString();
+			transaction[1] = username;
+			transaction[2] = receiver;
+			transaction[3] = amount;
+
+			writeToCSV(receiverPendingTransactionsFile,transaction,true);
+			writeToCSV(senderPendingTransactionsFile,transaction,true);
+
+			return ActionLabel.PENDING_TRANSACTION.getLabel();
+		} else {
+			System.out.println("sendAmount: Sender/Receiver client not found!");
+			return ActionLabel.CLIENT_NOT_FOUND.getLabel();
+		}
+	}
+
+	private static void createTransactionHistoryFiles(String username) {
+		File completeTransactionHistoryFile = new File("csv_files/" + username + "_complete_transaction_history.csv");
+		File pendingTransactionHistoryFile = new File("csv_files/" + username + "_pending_transaction_history.csv");
+		if(!completeTransactionHistoryFile.exists()) {
+			try {
+				completeTransactionHistoryFile.createNewFile();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		if(!pendingTransactionHistoryFile.exists()) {
+			try {
+				pendingTransactionHistoryFile.createNewFile();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		try {
+			completeTransactionHistoryFile.createNewFile();
+			pendingTransactionHistoryFile.createNewFile();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -117,9 +291,8 @@ public class Bank {
 		}
 		final int port = Integer.parseInt(args[0]);
 		Instant inst;
-		Hashtable<String, Integer> requestIds = new Hashtable<String, Integer>();
 
-
+		// Hash and (de)cipher algorithms initialization
 		
 
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
@@ -133,6 +306,7 @@ public class Bank {
 
 		// Create server socket
 		System.out.printf("Server will receive packets on port %d %n", port);
+
 		
 		// Wait for client packets 
 		while (true) {
@@ -155,12 +329,10 @@ public class Bank {
 				String clientText = new String(clientData, 0, clientLength);
 				System.out.println("Received request: " + clientText);
 
+				
 
-				// Parse message and check for integrity and authenticity, and return response
-				String response = receiveMessageAndCheckSafety(clientText, requestIds);
+				String response = receiveMessageAndCheckSafety(clientText);
 
-
-				// Response part of function
 				decryptCipher.init(Cipher.ENCRYPT_MODE, privKey);
 				inst = Instant.now().plus(15, ChronoUnit.MINUTES);
 
@@ -191,10 +363,13 @@ public class Bank {
 		}
 	}
 
-	private static void writeToCSV(String filePath, String[] values) {
+	private static void writeToCSV(String filePath, String[] values, boolean append) {
 		try {
-			FileWriter outputFile = new FileWriter(filePath, true);
-			CSVWriter writer = new CSVWriter(outputFile);
+			FileWriter outputFile = new FileWriter(filePath, append);
+			CSVWriter writer = new CSVWriter(outputFile, ',',
+					CSVWriter.NO_QUOTE_CHARACTER,
+					CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+					CSVWriter.DEFAULT_LINE_END);
 			writer.writeNext(values);
 			writer.close();
 		}
@@ -203,10 +378,10 @@ public class Bank {
 		}
 	}
 
-
-	private static String receiveMessageAndCheckSafety(String clientText, Hashtable<String, Integer> requestIds){
+	private static String receiveMessageAndCheckSafety(String clientText){
 		PublicKey pubKey = readPublic("keys/bank_public_key.der");
 		PrivateKey privKey = readPrivate("keys/bank_private_key.der");
+		PublicKey pubClientKey = null;
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 		Cipher decryptCipher = Cipher.getInstance(CIPHER_ALGO);
 		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
@@ -223,36 +398,41 @@ public class Bank {
 		instant = infoClientJson.get("instant").getAsString();
 		mac = requestJson.get("MAC").getAsString();
 
+		String[] bodyArray = body.split(",");
+
+		String response = "failed";
+		String publicClientPath = "keys/" + from + "_public_key.der";
+		pubClientKey = readPublic(publicClientPath);
+		decryptCipher.init(Cipher.DECRYPT_MODE, privKey);
+		signCipher.init(Cipher.DECRYPT_MODE, pubClientKey);
+
 
 
 		Integer idReceived = Integer.parseInt(instant);
 		if (requestIds.get(from).equals(null)){
 			requestIds.put(from, idReceived);
 		} else if (Integer.compare(idReceived, requestIds.get(from)) <= 0 ){
-			System.out.println("Message is duplicate, shall be ignored");  // TODO ignore execution of method
+			System.out.println("Message is duplicate, shall be ignored"); 
+			return response;
 		}
 
-		String response = "failed";
-		String publicClientPath = "keys/" + from + "_public_key.der";
-		PublicKey pubClientKey = readPublic(publicClientPath);
-		decryptCipher.init(Cipher.DECRYPT_MODE, privKey);
-		signCipher.init(Cipher.DECRYPT_MODE, pubClientKey);
 
 		byte[] macBytes = null;
 		try {
 			macBytes = signCipher.doFinal(Base64.getDecoder().decode(mac));
 		} catch (Exception e) {
-			System.out.println("Entity not authenticated!"); // TODO ignore execution of message
-			return "failed";
+			System.out.println("Entity not authenticated!");
+			return response;
 		}
 		msgDig.update(infoClientJson.toString().getBytes());
 		if (Arrays.equals(macBytes, msgDig.digest())) {
-			response = setResponse(body, from);
 			System.out.println("Confirmed content integrity.");
 		} else {
 			System.out.printf("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes)); // TODO ignore execution of message
-			return "failed";
+			return response;
 		}
+
+		response = setResponse(bodyArray, from);
 
 		System.out.printf("Message to '%s', from '%s':%n%s%n", to, from, body);
 		System.out.println("response body = " + response);

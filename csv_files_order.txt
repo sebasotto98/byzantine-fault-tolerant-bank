@@ -1,8 +1,8 @@
 // Clients csv
 
-public_key_path, available_ammount, book_ammount,
+username, available_amount, book_amount,
 
 
 // Transaction History csv
 
-timestamp, from, to, ammount
+timestamp, from, to, amount
