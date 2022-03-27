@@ -380,7 +380,7 @@ public class Bank {
 		}
 	}
 
-	private static String receiveMessageAndCheckSafety(String clientText){
+	private static String receiveMessageAndCheckSafety(String clientText) throws Exception{
 		PublicKey pubKey = readPublic("keys/bank_public_key.der");
 		PrivateKey privKey = readPrivate("keys/bank_private_key.der");
 		PublicKey pubClientKey = null;
