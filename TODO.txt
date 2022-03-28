@@ -1,6 +1,5 @@
 Functions:
 	receiveAmount
-	audit
 
 others: 
 	protect private key with KeyStore (lab01_Java_API.pdf)

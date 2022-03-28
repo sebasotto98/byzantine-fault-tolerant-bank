@@ -187,9 +187,9 @@ public class Client {
                                     System.out.println("Account details: ");
                                     String[] messages = bankResponse.split(";");
                                     String[] accountDetails = messages[0].split(",");
-                                    System.out.println("Account's owner: " + accountDetails[0]);
-                                    System.out.println("Available amount: " + accountDetails[1]);
-                                    System.out.println("Book amount: " + accountDetails[2]);
+                                    System.out.println("-Owner: " + accountDetails[0]);
+                                    System.out.println("-Available amount: " + accountDetails[1]);
+                                    System.out.println("-Book amount: " + accountDetails[2]);
                                     System.out.println("Pending transactions associated with the account: ");
                                     for (int i = 1; i < messages.length; i++) {
                                         String[] s = messages[i].split(",");
@@ -221,7 +221,60 @@ public class Client {
                     api.receiveAmount(publicKey);
                     break;
                 case 5:
-                    api.audit(publicKey);
+                    System.out.println("Please input your username (to fetch public and private key).");
+                    username = sc.nextLine();
+                    publicKeyPath = "keys/"+username+"_public_key.der";
+                    privateKeyPath = "keys/"+username+"_private_key.der";
+                    try {
+                        publicKey = readPublic(publicKeyPath);
+                        privateKey = readPrivate(privateKeyPath);
+                        System.out.println("Please input username of the account's owner (to fetch public key).");
+                        String owner = sc.nextLine();
+
+                        publicKeyPath = "keys/" + owner + "_public_key.der";
+                        PublicKey ownerKey = readPublic(publicKeyPath);
+
+                        int numberOfTries = 0;
+                        do {
+                            bankResponse = api.auditAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID, owner, ownerKey);
+                            if(bankResponse != null) {
+                                if (bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
+                                    System.out.println("Owner's account not found!");
+                                } else if (bankResponse.equals(ActionLabel.FAIL.getLabel())) {
+                                    System.out.println("Error trying to read clients file or owner's pending transactions file.");
+                                } else {
+                                    System.out.println("Account details: ");
+                                    String[] messages = bankResponse.split(";");
+                                    String[] accountDetails = messages[0].split(",");
+                                    System.out.println("-Owner: " + accountDetails[0]);
+                                    System.out.println("-Available amount: " + accountDetails[1]);
+                                    System.out.println("-Book amount: " + accountDetails[2]);
+                                    System.out.println("Complete transactions associated with the account: ");
+                                    for (int i = 1; i < messages.length; i++) {
+                                        String[] s = messages[i].split(",");
+
+                                        String str = "At " +
+                                                s[0] +
+                                                " user " +
+                                                s[1] +
+                                                " sent " +
+                                                s[3] +
+                                                " euros to user " +
+                                                s[2] +
+                                                ". Transaction accepted.";
+                                        System.out.println(str);
+                                    }
+                                }
+                            } else {
+                                bankResponse = ActionLabel.FAIL.getLabel();
+                            }
+                            numberOfTries++;
+                        } while((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
+                        requestID++;
+
+                    } catch (GeneralSecurityException | IOException e) {
+                        logger.error("Error: ", e);
+                    }
                     break;
                 case 6:
                     break;

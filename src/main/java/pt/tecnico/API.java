@@ -63,13 +63,18 @@ public class API {
 		return sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
     }
 
-    public void receiveAmount(PublicKey key) {
-
+    public String receiveAmount(PublicKey key) {
+		return ActionLabel.TODO.getLabel();
     }
 
-    public void audit(PublicKey key) {
+    public String auditAccount(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort, int serverPort,
+					  InetAddress serverAddress, PublicKey bankPublic, String username, int requestID, String owner, PublicKey ownerKey)
+			throws GeneralSecurityException, IOException {
 
-    }
+		String bodyText = ActionLabel.AUDIT_ACCOUNT.getLabel() + "," + owner;
+
+		return sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
+	}
 
     private String checkMessage(Cipher encryptCipher, String mac, MessageDigest msgDig, JsonObject infoJson,
                             String instantBank, Instant inst) {
@@ -81,24 +86,20 @@ public class API {
 			logger.info("Entity not authenticated!");
 		}
 		msgDig.update(infoJson.toString().getBytes());
-		String result = "accepted";
+		String result = ActionLabel.SUCCESS.getLabel();
 		if (Arrays.equals(macBytes, msgDig.digest())) {
 			logger.info("Confirmed equal body.");
 		} else {
 			logger.info(String.format("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes)));
-			result = "failed";
+			result = ActionLabel.FAIL.getLabel();
 		}
 		if (inst.compareTo(Instant.parse(instantBank)) > 0) {
 			logger.info("Old message resent!");
-			result = "failed";
+			result = ActionLabel.FAIL.getLabel();
 		} else {
 			logger.info("Confirmed message freshness.");
 		}
-        if (result.equals("failed")) {
-            return ActionLabel.FAIL.getLabel();
-        } else {
-            return ActionLabel.SUCCESS.getLabel();
-        }
+        return result;
     }
 
 	private String sendMessageAndReceiveBody(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort,
@@ -108,8 +109,6 @@ public class API {
 		
 		// Timestamps are in UTC
 		Instant inst = Instant.now().plus(SOCKET_TIMEOUT, ChronoUnit.MINUTES);
-		
-		//final String SYM_ALGO = "AES/CBC/PKCS5Padding";
 
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 
@@ -153,7 +152,7 @@ public class API {
 
 		try {
 			socket.receive(serverPacket);
-		} catch (SocketTimeoutException e){
+		} catch (SocketTimeoutException e) {
 			logger.info("Socket timeout. Failed request!");
 			// Close socket
 			socket.close();
@@ -161,12 +160,10 @@ public class API {
 			return ActionLabel.FAIL.getLabel();
 		}
 
-
 		logger.info(String.format("Received packet from %s:%d!%n", serverPacket.getAddress(), serverPacket.getPort()));
 		logger.info(String.format("%d bytes %n", serverPacket.getLength()));
 
 		inst = Instant.now();
-		//symCipher.init(Cipher.DECRYPT_MODE, symKey, iv);
 		encryptCipher.init(Cipher.DECRYPT_MODE, bankPublic);
 
 		// Convert response to string
@@ -188,7 +185,6 @@ public class API {
 		
         String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, instantBank, inst);
 
-		// Close socket
 		socket.close();
 		logger.info("Socket closed");
 
@@ -198,6 +194,4 @@ public class API {
 			return body;
 		}
     }
-
-
 }
