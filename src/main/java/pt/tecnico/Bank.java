@@ -46,6 +46,7 @@ public class Bank {
 
 	private static final String DIGEST_ALGO = "SHA-256";
 	private static final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
+	private static int transactionId = 0;
 
 	private static Hashtable<String, Integer> requestIds = new Hashtable<String, Integer>();
 
@@ -244,11 +245,14 @@ public class Bank {
 			String receiverPendingTransactionsFile = "csv_files/" + receiver + "_pending_transaction_history.csv";
 			String senderPendingTransactionsFile = "csv_files/" + username + "_pending_transaction_history.csv";
 
-			String[] transaction = new String[4];
-			transaction[0] = new Timestamp(System.currentTimeMillis()).toString();
-			transaction[1] = username;
-			transaction[2] = receiver;
-			transaction[3] = amount;
+			String[] transaction = new String[5];
+			transaction[0] = String.valueOf(transactionId);
+			transaction[1] = new Timestamp(System.currentTimeMillis()).toString();
+			transaction[2] = username;
+			transaction[3] = receiver;
+			transaction[4] = amount;
+
+			transactionId++;
 
 			writeToCSV(receiverPendingTransactionsFile,transaction,true);
 			writeToCSV(senderPendingTransactionsFile,transaction,true);
@@ -258,6 +262,134 @@ public class Bank {
 			System.out.println("sendAmount: Sender/Receiver client not found!");
 			return ActionLabel.CLIENT_NOT_FOUND.getLabel();
 		}
+	}
+
+	public static String handleReceiveAmountRequest(String username, String id){
+
+		//get account information
+		String[] client = null;
+
+		String clientsFilePath = "csv_files/clients.csv";
+		List<String[]> clients = new ArrayList<>();
+		FileReader fileReader;
+		BufferedReader reader;
+		try {
+			fileReader = new FileReader(clientsFilePath);
+			reader = new BufferedReader(fileReader);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				client = line.split(",");
+				clients.add(client);
+			}
+			fileReader.close();
+			reader.close();
+		} catch (IOException e) {
+			System.out.println("sendAmount: Error reading clients file.");
+			return ActionLabel.FAIL.getLabel();
+		}
+
+		
+		boolean usernameFound = false;
+		for(String[] c: clients){
+			System.out.print("c[0]:");
+			System.out.println("|" + c[0] + "|");
+			if(c[0].equals(username)){
+				//c -> 0-username, 1-available amount, 2-book
+				usernameFound = true;
+			} 
+		}
+
+		String pendingTransaction[] = null;
+		String usernamePendingTransactionsPath = "csv_files/" + username + "_pending_transaction_history.csv";
+		List<String[]> pendingTransactions = new ArrayList<>();
+		try {
+			fileReader = new FileReader(usernamePendingTransactionsPath);
+			reader = new BufferedReader(fileReader);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				pendingTransaction = line.split(",");
+				pendingTransactions.add(pendingTransaction);
+			}
+			fileReader.close();
+			reader.close();
+		} catch (IOException e) {
+			System.out.println("sendAmount: Error reading clients file.");
+			return ActionLabel.FAIL.getLabel();
+		}
+
+
+		boolean transactionFound = false;
+		boolean receiverFound = false;
+		boolean senderFound = false;
+		String transaction[] = null;
+		for(String[] t: pendingTransactions){
+			System.out.print("c[0]:");
+			System.out.println("|" + t[0] + "|");
+			if(t[0].equals(id)){
+				//c -> 0-id, 1-timestamp, 2-sender 3-receiver 4-amount
+				//check if client is receiver
+				if (t[3].equals(username)){
+					transactionFound = true;
+					for(String[] c: clients){
+						System.out.print("c[0]:");
+						System.out.println("|" + c[0] + "|");
+						if(c[0].equals(username)){
+							//c -> 0-username, 1-available amount, 2-book
+							receiverFound = true;
+							float available_final_amount = Float.parseFloat(c[1]) + Float.parseFloat(t[4]);
+							float book_final_amount = Float.parseFloat(c[1]) + Float.parseFloat(t[4]);
+							c[1] = String.valueOf(available_final_amount);
+							c[2] = String.valueOf(book_final_amount);
+						} else if (c[0].equals(c[2])){
+							senderFound = true;
+							float final_amount = Float.parseFloat(c[2]) - Float.parseFloat(t[4]);
+							c[2] = String.valueOf(final_amount);
+						}
+					}
+					transaction = t;
+				} else{
+					return ActionLabel.CLIENT_NOT_RECEIVER.getLabel();
+				}
+				
+			} 
+		}
+
+		// TODO
+		// Remove transaction from pending
+		// Add transaction to completed
+		// both in receiver and sender
+		// then rewrite in files
+
+
+		if(usernameFound && transactionFound && senderFound && receiverFound){
+			//this boolean is used to overwrite file. First call to write overwrites files and following call just append
+			boolean flag = false;
+			for(String[] c: clients){
+				writeToCSV(clientsFilePath,c,flag); //rewrite clients file
+				flag = true;
+			}
+
+			//String receiverPendingTransactionsFile = "csv_files/" + receiver + "_pending_transaction_history.csv";
+			//String senderPendingTransactionsFile = "csv_files/" + username + "_pending_transaction_history.csv";
+
+			//String[] transaction = new String[5];
+			//transaction[0] = String.valueOf(transactionId);
+			//transaction[1] = new Timestamp(System.currentTimeMillis()).toString();
+			//transaction[2] = username;
+			//transaction[3] = receiver;
+			//transaction[4] = amount;
+
+			//transactionId++;
+
+			//writeToCSV(receiverPendingTransactionsFile,transaction,true);
+			//writeToCSV(senderPendingTransactionsFile,transaction,true);
+
+			return ActionLabel.PENDING_TRANSACTION.getLabel();
+		} else {
+			System.out.println("sendAmount: Sender/Receiver client not found!");
+			return ActionLabel.CLIENT_NOT_FOUND.getLabel();
+		}
+
 	}
 
 	private static void createTransactionHistoryFiles(String username) {

@@ -16,6 +16,7 @@ public enum ActionLabel {
     PENDING_TRANSACTION("PendingTransaction"),
     INSUFFICIENT_AMOUNT("InsufficientAmount"),
     CLIENT_NOT_FOUND("ClientNotFound"),
+    CLIENT_NOT_RECEIVER("ClientNotReceiver"),
 
 
     //generic labels
