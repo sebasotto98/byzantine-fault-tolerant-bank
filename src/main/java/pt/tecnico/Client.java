@@ -20,7 +20,7 @@ public class Client {
     private static final int MAX_RETRIES = 5;
 
     public static PublicKey readPublic(String publicKeyPath) throws GeneralSecurityException, IOException {
-        System.out.println("Reading public key from file " + publicKeyPath + " ...");
+        logger.info("Reading public key from file " + publicKeyPath + " ...");
         FileInputStream pubFis = new FileInputStream(publicKeyPath);
         byte[] pubEncoded = new byte[pubFis.available()];
         pubFis.read(pubEncoded);
@@ -34,7 +34,7 @@ public class Client {
     }
 
     public static PrivateKey readPrivate(String privateKeyPath) throws GeneralSecurityException, IOException {
-        System.out.println("Reading private key from file " + privateKeyPath + " ...");
+        logger.info("Reading private key from file " + privateKeyPath + " ...");
         FileInputStream privFis = new FileInputStream(privateKeyPath);
         byte[] privEncoded = new byte[privFis.available()];
         privFis.read(privEncoded);
@@ -212,11 +212,10 @@ public class Client {
                             numberOfTries++;
                         } while((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
                         requestID++;
-                                                
+
                     } catch (GeneralSecurityException | IOException e) {
                         logger.error("Error: ", e);
                     }
-                    
                     break;
                 case 4:
                     api.receiveAmount(publicKey);

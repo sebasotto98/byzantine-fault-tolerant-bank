@@ -1,6 +1,7 @@
 package pt.tecnico;
 
 import java.io.*;
+import java.lang.invoke.MethodHandles;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -27,12 +28,14 @@ import javax.crypto.spec.IvParameterSpec;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.opencsv.CSVWriter;
-
-import pt.tecnico.ActionLabel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Timestamp;
 
 public class Bank {
+
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getSimpleName());
 
 	/**
 	 * Maximum size for a UDP packet. The field size sets a theoretical limit of
@@ -49,9 +52,8 @@ public class Bank {
 
 	private static Hashtable<String, Integer> requestIds = new Hashtable<String, Integer>();
 
-
 	public static KeyPair read(String publicKeyPath, String privateKeyPath) throws GeneralSecurityException, IOException {
-        System.out.println("Reading public key from file " + publicKeyPath + " ...");
+        logger.info("Reading public key from file " + publicKeyPath + " ...");
         FileInputStream pubFis = new FileInputStream(publicKeyPath);
         byte[] pubEncoded = new byte[pubFis.available()];
         pubFis.read(pubEncoded);
@@ -61,7 +63,7 @@ public class Bank {
         KeyFactory keyFacPub = KeyFactory.getInstance("RSA");
         PublicKey pub = keyFacPub.generatePublic(pubSpec);
 
-        System.out.println("Reading private key from file " + privateKeyPath + " ...");
+        logger.info("Reading private key from file " + privateKeyPath + " ...");
         FileInputStream privFis = new FileInputStream(privateKeyPath);
         byte[] privEncoded = new byte[privFis.available()];
         privFis.read(privEncoded);
@@ -76,7 +78,7 @@ public class Bank {
     }
 
 	public static PublicKey readPublic(String publicKeyPath) throws GeneralSecurityException, IOException {
-		System.out.println("Reading public key from file " + publicKeyPath + " ...");
+		logger.info("Reading public key from file " + publicKeyPath + " ...");
         FileInputStream pubFis = new FileInputStream(publicKeyPath);
         byte[] pubEncoded = new byte[pubFis.available()];
         pubFis.read(pubEncoded);
@@ -90,7 +92,7 @@ public class Bank {
 	}
 
 	public static PrivateKey readPrivate(String privateKeyPath) throws GeneralSecurityException, IOException {
-		System.out.println("Reading private key from file " + privateKeyPath + " ...");
+		logger.info("Reading private key from file " + privateKeyPath + " ...");
 		FileInputStream privFis = new FileInputStream(privateKeyPath);
 		byte[] privEncoded = new byte[privFis.available()];
 		privFis.read(privEncoded);
@@ -154,7 +156,7 @@ public class Bank {
 			fileReader.close();
 			reader.close();
 		} catch (IOException e) {
-			System.out.println("checkAccount: Error reading clients file.");
+			logger.info("checkAccount: Error reading clients file.");
 			return ActionLabel.FAIL.getLabel();
 		}
 
@@ -184,7 +186,7 @@ public class Bank {
 
 				return response.toString();
 			} catch (IOException e) {
-				System.out.println("checkAccount: Error reading pending transactions file.");
+				logger.info("checkAccount: Error reading pending transactions file.");
 				return ActionLabel.FAIL.getLabel();
 			}
 		}
@@ -209,7 +211,7 @@ public class Bank {
 			fileReader.close();
 			reader.close();
 		} catch (IOException e) {
-			System.out.println("sendAmount: Error reading clients file.");
+			logger.info("sendAmount: Error reading clients file.");
 			return ActionLabel.FAIL.getLabel();
 		}
 
@@ -255,7 +257,7 @@ public class Bank {
 
 			return ActionLabel.PENDING_TRANSACTION.getLabel();
 		} else {
-			System.out.println("sendAmount: Sender/Receiver client not found!");
+			logger.info("sendAmount: Sender/Receiver client not found!");
 			return ActionLabel.CLIENT_NOT_FOUND.getLabel();
 		}
 	}
@@ -267,21 +269,21 @@ public class Bank {
 			try {
 				completeTransactionHistoryFile.createNewFile();
 			} catch (IOException e) {
-				e.printStackTrace();
+				logger.error("Error", e);
 			}
 		}
 		if(!pendingTransactionHistoryFile.exists()) {
 			try {
 				pendingTransactionHistoryFile.createNewFile();
 			} catch (IOException e) {
-				e.printStackTrace();
+				logger.error("Error", e);
 			}
 		}
 		try {
 			completeTransactionHistoryFile.createNewFile();
 			pendingTransactionHistoryFile.createNewFile();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("Error", e);
 		}
 	}
 
@@ -305,7 +307,7 @@ public class Bank {
 		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
 
 		// Create server socket
-		System.out.printf("Server will receive packets on port %d %n", port);
+		logger.info(String.format("Server will receive packets on port %d %n", port));
 		
 		// Wait for client packets 
 		while (true) {
@@ -319,14 +321,14 @@ public class Bank {
 				int clientPort = clientPacket.getPort();
 				int clientLength = clientPacket.getLength();
 				byte[] clientData = clientPacket.getData();
-				System.out.printf("Received request packet from %s:%d!%n", clientAddress, clientPort);
-				System.out.printf("%d bytes %n", clientLength);
+				logger.info(String.format("Received request packet from %s:%d!%n", clientAddress, clientPort));
+				logger.info(String.format("%d bytes %n", clientLength));
 
 				inst = Instant.now();
 
 				// Convert request to string
 				String clientText = new String(clientData, 0, clientLength);
-				System.out.println("Received request: " + clientText);
+				logger.info("Received request: " + clientText);
 
 				String[] response = receiveMessageAndCheckSafety(clientText);
 
@@ -348,14 +350,14 @@ public class Bank {
 				String ins = Base64.getEncoder().encodeToString(decryptCipher.doFinal(msgDig.digest()));
 				responseJson.addProperty("MAC", ins);
 
-				System.out.println("Response message: " + responseJson);
+				logger.info("Response message: " + responseJson);
 
 				// Send response
 				byte[] serverData = responseJson.toString().getBytes();
-				System.out.printf("%d bytes %n", serverData.length);
+				logger.info(String.format("%d bytes %n", serverData.length));
 				DatagramPacket serverPacket = new DatagramPacket(serverData, serverData.length, clientPacket.getAddress(), clientPacket.getPort());
 				socket.send(serverPacket);
-				System.out.printf("Response packet sent to %s:%d!%n", clientPacket.getAddress(), clientPacket.getPort());
+				logger.info(String.format("Response packet sent to %s:%d!%n", clientPacket.getAddress(), clientPacket.getPort()));
 			}
 		}
 	}
@@ -371,7 +373,7 @@ public class Bank {
 			writer.close();
 		}
 		catch (IOException e) {
-			e.printStackTrace();
+			logger.error("Error", e);
 		}
 	}
 
@@ -408,7 +410,7 @@ public class Bank {
 		if (requestIds.get(from) == null){
 			requestIds.put(from, idReceived);
 		} else if (Integer.compare(idReceived, requestIds.get(from)) <= 0 ){
-			System.out.println("Message is duplicate, shall be ignored"); 
+			logger.info("Message is duplicate, shall be ignored");
 			response[0] = ActionLabel.SUCCESS.getLabel();
 		}
 
@@ -416,22 +418,23 @@ public class Bank {
 		try {
 			macBytes = signCipher.doFinal(Base64.getDecoder().decode(mac));
 		} catch (Exception e) {
-			System.out.println("Entity not authenticated!");
+			logger.error("Error", e);
+			logger.info("Entity not authenticated!");
 			return response;
 		}
 		msgDig.update(infoClientJson.toString().getBytes());
 		if (Arrays.equals(macBytes, msgDig.digest())) {
-			System.out.println("Confirmed content integrity.");
+			logger.info("Confirmed content integrity.");
 		} else {
-			System.out.printf("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes)); // TODO ignore execution of message
+			logger.info(String.format("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes))); // TODO ignore execution of message
 			return response;
 		}
 
 		response[0] = setResponse(bodyArray, from);
 		response[1] = from;
 
-		System.out.printf("Message to '%s', from '%s':%n%s%n", to, from, body);
-		System.out.println("response body = " + response[0]);
+		logger.info(String.format("Message to '%s', from '%s':%n%s%n", to, from, body));
+		logger.info("response body = " + response[0]);
 
 		return response;
 	}
