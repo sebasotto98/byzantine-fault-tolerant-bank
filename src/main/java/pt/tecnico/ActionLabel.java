@@ -17,7 +17,7 @@ public enum ActionLabel {
     INSUFFICIENT_AMOUNT("InsufficientAmount"),
     CLIENT_NOT_FOUND("ClientNotFound"),
     CLIENT_NOT_RECEIVER("ClientNotReceiver"),
-
+    COMPLETED_TRANSACTION("CompletedTransaction"),
 
     //generic labels
     FAIL("Fail"),

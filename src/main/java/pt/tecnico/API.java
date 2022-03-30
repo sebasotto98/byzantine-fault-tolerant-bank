@@ -1,6 +1,7 @@
 package pt.tecnico;
 
 import java.io.*;
+import java.lang.invoke.MethodHandles;
 import java.security.PublicKey;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -18,10 +19,12 @@ import javax.crypto.Cipher;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-
-import pt.tecnico.ActionLabel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class API {
+
+	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getSimpleName());
 
     private static final int BUFFER_SIZE = 65507;
     private static final int SOCKET_TIMEOUT = 5;
@@ -60,13 +63,22 @@ public class API {
 		return sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
     }
 
-    public void receiveAmount(PublicKey key) {
+    public String receiveAmount(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort, int serverPort,
+								InetAddress serverAddress, PublicKey bankPublic, String username, int requestID, int transactionId)
+							throws GeneralSecurityException, IOException  {
+		String bodyText = ActionLabel.RECEIVE_AMOUNT.getLabel() + "," + transactionId;
 
+		return sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
     }
 
-    public void audit(PublicKey key) {
+    public String auditAccount(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort, int serverPort,
+					  InetAddress serverAddress, PublicKey bankPublic, String username, int requestID, String owner, PublicKey ownerKey)
+			throws GeneralSecurityException, IOException {
 
-    }
+		String bodyText = ActionLabel.AUDIT_ACCOUNT.getLabel() + "," + owner;
+
+		return sendMessageAndReceiveBody(accountPublicKey, accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
+	}
 
     private String checkMessage(Cipher encryptCipher, String mac, MessageDigest msgDig, JsonObject infoJson,
                             String instantBank, Instant inst) {
@@ -74,28 +86,24 @@ public class API {
 		try {
 			macBytes = encryptCipher.doFinal(Base64.getDecoder().decode(mac));
 		} catch (Exception e) {
-			e.printStackTrace();
-			System.out.println("Entity not authenticated!");
+			logger.error("Error", e);
+			logger.info("Entity not authenticated!");
 		}
 		msgDig.update(infoJson.toString().getBytes());
-		String result = "accepted";
+		String result = ActionLabel.SUCCESS.getLabel();
 		if (Arrays.equals(macBytes, msgDig.digest())) {
-			System.out.println("Confirmed equal body.");
+			logger.info("Confirmed equal body.");
 		} else {
-			System.out.printf("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes));	
-			result = "failed";
+			logger.info(String.format("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes)));
+			result = ActionLabel.FAIL.getLabel();
 		}
 		if (inst.compareTo(Instant.parse(instantBank)) > 0) {
-			System.out.println("Old message resent!");
-			result = "failed";
+			logger.info("Old message resent!");
+			result = ActionLabel.FAIL.getLabel();
 		} else {
-			System.out.println("Confirmed message freshness.");
+			logger.info("Confirmed message freshness.");
 		}
-        if (result.equals("failed")) {
-            return ActionLabel.FAIL.getLabel();
-        } else {
-            return ActionLabel.SUCCESS.getLabel();
-        }
+        return result;
     }
 
 	private String sendMessageAndReceiveBody(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort,
@@ -105,8 +113,6 @@ public class API {
 		
 		// Timestamps are in UTC
 		Instant inst = Instant.now().plus(SOCKET_TIMEOUT, ChronoUnit.MINUTES);
-		
-		//final String SYM_ALGO = "AES/CBC/PKCS5Padding";
 
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 
@@ -134,41 +140,39 @@ public class API {
         String macString = Base64.getEncoder().encodeToString(signCipher.doFinal(msgDig.digest()));
         requestJson.addProperty("MAC", macString);
 		
-		System.out.println("Request message: " + requestJson);
+		logger.info("Request message: " + requestJson);
 		
 		// Send request
 		byte[] clientData = requestJson.toString().getBytes();
-		System.out.printf("%d bytes %n", clientData.length);
+		logger.info(String.format("%d bytes %n", clientData.length));
 		DatagramPacket clientPacket = new DatagramPacket(clientData, clientData.length, serverAddress, serverPort);
 		socket.send(clientPacket);
-		System.out.printf("Request packet sent to %s:%d!%n", serverAddress, serverPort);
+		logger.info(String.format("Request packet sent to %s:%d!%n", serverAddress, serverPort));
 
 		// Receive response
 		byte[] serverData = new byte[BUFFER_SIZE];
 		DatagramPacket serverPacket = new DatagramPacket(serverData, serverData.length);
-		System.out.println("Wait for response packet...");
+		logger.info("Wait for response packet...");
 
 		try {
 			socket.receive(serverPacket);
-		} catch (SocketTimeoutException e){
-			System.out.println("Socket timeout. Failed request!");
+		} catch (SocketTimeoutException e) {
+			logger.info("Socket timeout. Failed request!");
 			// Close socket
 			socket.close();
-			System.out.println("Socket closed");
+			logger.info("Socket closed");
 			return ActionLabel.FAIL.getLabel();
 		}
 
-
-		System.out.printf("Received packet from %s:%d!%n", serverPacket.getAddress(), serverPacket.getPort());
-		System.out.printf("%d bytes %n", serverPacket.getLength());
+		logger.info(String.format("Received packet from %s:%d!%n", serverPacket.getAddress(), serverPacket.getPort()));
+		logger.info(String.format("%d bytes %n", serverPacket.getLength()));
 
 		inst = Instant.now();
-		//symCipher.init(Cipher.DECRYPT_MODE, symKey, iv);
 		encryptCipher.init(Cipher.DECRYPT_MODE, bankPublic);
 
 		// Convert response to string
 		String serverText = new String(serverPacket.getData(), 0, serverPacket.getLength());
-		System.out.println("Received response: " + serverText);
+		logger.info("Received response: " + serverText);
 
 		// Parse JSON and extract arguments
 		JsonObject responseJson = JsonParser.parseString(serverText).getAsJsonObject();
@@ -185,9 +189,8 @@ public class API {
 		
         String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, instantBank, inst);
 
-		// Close socket
 		socket.close();
-		System.out.println("Socket closed");
+		logger.info("Socket closed");
 
 		if (messageCheck.equals(ActionLabel.FAIL.getLabel())) {
 			return ActionLabel.FAIL.getLabel();
@@ -195,6 +198,4 @@ public class API {
 			return body;
 		}
     }
-
-
 }
