@@ -364,23 +364,6 @@ public class Bank {
 			System.out.println("sendAmount: Error reading clients file.");
 			return ActionLabel.FAIL.getLabel();
 		}
-		String completedTransaction[] = null;
-		String completedTransactionPath = "csv_files/" + username + "_complete_transaction_history.csv";
-		List<String[]> completedTransactions = new ArrayList<>();
-		try {
-			fileReader = new FileReader(completedTransactionPath);
-			reader = new BufferedReader(fileReader);
-			String line;
-			while ((line = reader.readLine()) != null) {
-				completedTransaction = line.split(",");
-				completedTransactions.add(completedTransaction);
-			}
-			fileReader.close();
-			reader.close();
-		} catch (IOException e) {
-			System.out.println("sendAmount: Error reading clients file.");
-			return ActionLabel.FAIL.getLabel();
-		}
 
 		String sender = null;
 		boolean transactionFound = false;
@@ -431,7 +414,6 @@ public class Bank {
 			// updating transactions in 
 			String pendingTransactionSender[] = null;
 			String usernamePendingTransactionsSenderPath = "csv_files/" + sender + "_pending_transaction_history.csv";
-			System.out.println(usernamePendingTransactionsSenderPath);
 			List<String[]> pendingTransactionsSender = new ArrayList<>();
 			String transactionInSender[] = null;
 			try {
@@ -440,7 +422,11 @@ public class Bank {
 				String line;
 				while ((line = reader.readLine()) != null) {
 					pendingTransactionSender = line.split(",");
+					if (pendingTransactionSender[0].equals(id)){
+						transactionInSender = pendingTransactionSender;
+					}
 					pendingTransactionsSender.add(pendingTransactionSender);
+					
 				}
 				fileReader.close();
 				reader.close();
@@ -448,7 +434,7 @@ public class Bank {
 				System.out.println("sendAmount: Error reading clients file.");
 				return ActionLabel.FAIL.getLabel();
 			}
-
+			
 			pendingTransactions.remove(receiverTransaction);
 			pendingTransactionsSender.remove(transactionInSender);
 
@@ -458,12 +444,21 @@ public class Bank {
 			String senderCompletedTransactionsFile = "csv_files/" + sender + "_complete_transaction_history.csv";
 
 			System.out.println("Receiver pending " + pendingTransactions.size() + "; sender pending " + pendingTransactionsSender.size());
+			System.out.println("");
+			System.out.println("");
+			System.out.println("");
+			System.out.println("");
 
 			if (pendingTransactions.size() == 0){
 				// clear all contents of file
-				File pendingTransactionHistoryFile = new File("csv_files/" + username + "_pending_transaction_history.csv");
-				pendingTransactionHistoryFile.delete();
-				pendingTransactionHistoryFile.createNewFile();
+				try{
+					File pendingTransactionHistoryFile = new File("csv_files/" + username + "_pending_transaction_history.csv");
+					pendingTransactionHistoryFile.delete();
+					pendingTransactionHistoryFile.createNewFile();
+				} catch (IOException e){
+					System.out.println("sendAmount: Error reading clients file.");
+					return ActionLabel.FAIL.getLabel();
+				}
 			} else{
 				flag = false;
 				for(String[] t: pendingTransactions){
@@ -472,8 +467,16 @@ public class Bank {
 				}
 			}
 
-			if (pendingTransactions.size() == 0){
-				writeToCSV(senderPendingTransactionsFile,new String[]{""},false);
+			if (pendingTransactionsSender.size() == 0){
+				// clear all contents of file
+				try{
+					File pendingTransactionHistoryFile = new File("csv_files/" + sender + "_pending_transaction_history.csv");
+					pendingTransactionHistoryFile.delete();
+					pendingTransactionHistoryFile.createNewFile();
+				} catch (IOException e){
+					System.out.println("sendAmount: Error reading clients file.");
+					return ActionLabel.FAIL.getLabel();
+				}
 			} else{
 				flag = false;
 				for(String[] t: pendingTransactionsSender){
@@ -482,13 +485,8 @@ public class Bank {
 				}
 			}
 
-			
-
-			
-
 			writeToCSV(receiverTransactionsFile, receiverTransaction, true);
 			writeToCSV(senderCompletedTransactionsFile, receiverTransaction, true);
-
 
 			return ActionLabel.COMPLETED_TRANSACTION.getLabel();
 		} else {
