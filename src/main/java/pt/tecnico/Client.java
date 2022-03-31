@@ -3,12 +3,17 @@ package pt.tecnico;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.crypto.SecretKey;
+import javax.crypto.*;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.lang.invoke.MethodHandles;
 import java.net.UnknownHostException;
 import java.security.*;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Scanner;
@@ -47,6 +52,59 @@ public class Client {
         return priv;
     }
 
+    private static PrivateKey getPrivateKey(String password, String alias){
+        PrivateKey k = null;
+
+        KeyStore ks = null;
+        try {
+            ks = KeyStore.getInstance("JCEKS");
+
+
+        KeyStore.ProtectionParameter pass =
+                new KeyStore.PasswordProtection(password.toCharArray());
+        // get my private key
+        KeyStore.PrivateKeyEntry pkEntry = (KeyStore.PrivateKeyEntry) ks.getEntry(alias, pass);
+        k = pkEntry.getPrivateKey();
+
+        } catch (NoSuchAlgorithmException | UnrecoverableEntryException | KeyStoreException e) {
+            logger.error("Error: ", e);
+        }
+
+        return k;
+    }
+
+    private static void savePrivateKey(String alias, String passwordString, PrivateKey privateKey, PublicKey publicKey, String username) {
+        KeyStore ks = null;
+        try {
+            ks = KeyStore.getInstance("JCEKS");
+
+
+
+            //crate new
+            ks.load(null, passwordString.toCharArray());
+
+            Certificate[] chain = new Certificate[1];
+
+            KeyStore.PrivateKeyEntry pkEntry = new KeyStore.PrivateKeyEntry(privateKey, chain);
+
+            KeyStore.PasswordProtection password;
+            password = new KeyStore.PasswordProtection(passwordString.toCharArray());
+
+            ks.setEntry(alias, pkEntry, password);
+
+            java.io.FileOutputStream fos = new java.io.FileOutputStream("ks/" + username +"KeystoreFile.jce");
+
+            ks.store(fos, passwordString.toCharArray());
+
+            fos.close();
+
+            System.out.println("Saved.");
+
+        } catch (CertificateException | KeyStoreException | IOException | NoSuchAlgorithmException e) {
+            logger.error("Error: ", e);
+        }
+    }
+
     public static void main(String[] args) {
         if (args.length < 2) {
             System.err.println("Argument(s) missing!");
@@ -76,6 +134,7 @@ public class Client {
         Scanner sc = new Scanner(System.in);
 
         String bankResponse;
+        String alias, password;
 
         int ch = 0;
         while (ch!=6) {
@@ -90,6 +149,11 @@ public class Client {
                     username = sc.nextLine();
                     publicKeyPath = "keys/"+username+"_public_key.der";
                     privateKeyPath = "keys/"+username+"_private_key.der";
+
+                    System.out.println("alias: ");
+                    alias = sc.nextLine();
+                    System.out.println("password: ");
+                    password = sc.nextLine();
                     try {
                         publicKey = readPublic(publicKeyPath);
                         privateKey = readPrivate(privateKeyPath);
@@ -99,6 +163,7 @@ public class Client {
                             if(bankResponse != null) {
                                 if (bankResponse.equals(ActionLabel.SUCCESS.getLabel())) {
                                     System.out.println("Account opened successfully!");
+                                    //savePrivateKey(alias, password, privateKey, publicKey, username);
                                 } else if (bankResponse.equals(ActionLabel.FAIL.getLabel())) {
                                     System.out.println("Failed to open account.");
                                 }

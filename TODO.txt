@@ -1,6 +1,5 @@
 Functions:
-	receiveAmount
 
 others: 
-	protect private key with KeyStore (lab01_Java_API.pdf)
+	protect private key with KeyStore (lab01_Java_API.pdf) -> in progress
 	unit tests for each client action
