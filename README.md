@@ -1,12 +1,26 @@
 # SEC_project
 
-# Generate key pairs for all entities
+# Generate key pairs for all entities and keyStore
 
 Since this project will mostly be executed on the same computer, we have created a script to generate all the key pairs more easily. In production this script would not be used, since entities must not have access to each others private keys.
 To run the script simply execute:
 
 `./generateKeys.sh`
 
+
+# Generate Key Stores to safely keep keys
+
+To safely store keys we shall use a key store, from the key tool package. To generate this, simply run:
+
+`./generateKeyStore.sh`
+
+Which will generate a key store for each of the six clients.
+
+To generate a keyStore for a specific client use the following commands:
+``` 
+keytool -genkey -alias clientX -keyalg RSA -keystore ks/clientX_KeystoreFile.jks
+keytool -export -alias clientX -file ks/clientX_Certificate.cer -keystore ks/clientX_KeystoreFile.jks
+```
 
 
 # Compile and execute project
@@ -38,4 +52,11 @@ To run a pre-built exemple, simply pass it as input. We have provided one of the
 
 
 This inputExemple is an exemple of a possible usage, with all commands being executed.
+
+
+### Run tests
+
+To run the tests we have provided, it is enough to run
+
+`mvn test`
 
