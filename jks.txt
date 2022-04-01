@@ -1,0 +1,3 @@
+keytool -genkey -alias clientX -keyalg RSA -keystore ks/clientX_KeystoreFile.jks
+
+keytool -export -alias clientX -file ks/clientX_Certificate.cer -keystore ks/clientX_KeystoreFile.jks
