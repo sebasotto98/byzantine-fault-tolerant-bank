@@ -347,7 +347,7 @@ public class Bank {
 			} 
 		}
 
-		String pendingTransaction[] = null;
+		String[] pendingTransaction = null;
 		String usernamePendingTransactionsPath = "csv_files/" + username + "_pending_transaction_history.csv";
 		List<String[]> pendingTransactions = new ArrayList<>();
 		try {
@@ -369,7 +369,7 @@ public class Bank {
 		boolean transactionFound = false;
 		boolean receiverFound = false;
 		boolean senderFound = false;
-		String receiverTransaction[] = null;
+		String[] receiverTransaction = null;
 		for(String[] t: pendingTransactions){
 			System.out.print("c[0]:");
 			System.out.println("|" + t[0] + "|");
@@ -403,7 +403,7 @@ public class Bank {
 			} 
 		}
 		
-		if(usernameFound && transactionFound && senderFound && receiverFound){
+		if(usernameFound && transactionFound && senderFound && receiverFound) {
 			//this boolean is used to overwrite file. First call to write overwrites files and following call just append
 			boolean flag = false;
 			for(String[] c: clients){
@@ -412,10 +412,10 @@ public class Bank {
 			}
 
 			// updating transactions in 
-			String pendingTransactionSender[] = null;
+			String[] pendingTransactionSender = null;
 			String usernamePendingTransactionsSenderPath = "csv_files/" + sender + "_pending_transaction_history.csv";
 			List<String[]> pendingTransactionsSender = new ArrayList<>();
-			String transactionInSender[] = null;
+			String[] transactionInSender = null;
 			try {
 				fileReader = new FileReader(usernamePendingTransactionsSenderPath);
 				reader = new BufferedReader(fileReader);
@@ -547,11 +547,10 @@ public class Bank {
 		}
 		// Create server socket
 		logger.info(String.format("Server will receive packets on port %d %n", port));
-		
+
 		// Wait for client packets 
 		while (true) {
 			try (DatagramSocket socket = new DatagramSocket(port)) {
-
 				byte[] buf = new byte[BUFFER_SIZE];
 				// Receive packet
 				DatagramPacket clientPacket = new DatagramPacket(buf, buf.length);
@@ -584,7 +583,7 @@ public class Bank {
 
 				responseJson.add("info", infoJson);
 
-				if(decryptCipher != null && msgDig != null) {
+				if (decryptCipher != null && msgDig != null) {
 					decryptCipher.init(Cipher.ENCRYPT_MODE, privKey);
 					msgDig.update(infoJson.toString().getBytes());
 					String ins = Base64.getEncoder().encodeToString(decryptCipher.doFinal(msgDig.digest()));
