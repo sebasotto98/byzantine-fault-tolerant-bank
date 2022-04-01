@@ -112,7 +112,7 @@ public class BankTest {
 
 
     @Test
-    public void manipulatedMessage_unitTest() throws NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException
+    public void manipulatedMessageUnitTest() throws NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException
                                                         , GeneralSecurityException, IOException {
 
         String clientText = null;
@@ -138,7 +138,7 @@ public class BankTest {
         infoJson.addProperty("to", "BFTB");
 		infoJson.addProperty("from", username);
         String bodyText = "mock body text";
-        int requestID = 0;
+        int requestID = 20;
         infoJson.addProperty("body", bodyText);
         infoJson.addProperty("instant", Integer.toString(requestID));
 
