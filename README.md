@@ -15,6 +15,15 @@
 2. History (credit/withdrawal)
 
 
+# Generate key pairs for all entities
+
+Since this project will mostly be executed on the same computer, we have created a script to generate all the key pairs more easily. In production this script would not be used, since entities must not have access to each others private keys.
+To run the script simply execute:
+
+`./generateKeys.sh`
+
+
+
 # Compile and execute project
 
 We built this project with the help of maven, which allows for faster and simple compiling and execution.
@@ -38,4 +47,6 @@ To run a pre-built exemple, simply pass it as input. We have provided one of the
 
 `mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001" < inputExemple`
 
+
+This inputExemple is an exemple of a possible usage, with all commands being executed.
 
