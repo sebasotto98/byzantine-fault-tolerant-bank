@@ -1,20 +1,5 @@
 # SEC_project
 
-## Requirements
-
-### Non-functional
-
-#### Security
-
-1. Authentication 
-2. Non-repudiation (sender/receiver)
-
-### Functional
-
-1. Current balance (>=0)
-2. History (credit/withdrawal)
-
-
 # Generate key pairs for all entities
 
 Since this project will mostly be executed on the same computer, we have created a script to generate all the key pairs more easily. In production this script would not be used, since entities must not have access to each others private keys.
@@ -43,7 +28,11 @@ To compile simply go to the main folder (`SEC_PROJECT`), and execute the followi
 `mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001"`
 
 This will run a functional client server, with all command options to execute.
+
+##### Runing with demo application
+
 To run a pre-built exemple, simply pass it as input. We have provided one of these exemples.
+
 
 `mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001" < inputExemple`
 
