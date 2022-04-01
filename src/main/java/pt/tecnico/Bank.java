@@ -619,7 +619,7 @@ public class Bank {
 		}
 	}
 
-	private static String[] receiveMessageAndCheckSafety(String clientText) throws GeneralSecurityException, IOException {
+	public static String[] receiveMessageAndCheckSafety(String clientText) throws GeneralSecurityException, IOException {
 		String[] response = new String[2];
 
 		PublicKey pubKey = readPublic("keys/bank_public_key.der");

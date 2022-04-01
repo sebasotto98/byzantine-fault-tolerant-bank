@@ -14,8 +14,32 @@ import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.Base64;
+import java.lang.invoke.MethodHandles;
+import java.security.PublicKey;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketTimeoutException;
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.PrivateKey;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import javax.crypto.IllegalBlockSizeException;
+import java.security.InvalidKeyException; 
+import java.security.NoSuchAlgorithmException;
 
-public class APITest {
+import javax.crypto.Cipher;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+
+import com.google.gson.JsonObject;
+
+public class BankTest {
 
     private API api;
     private Thread bankThread;
@@ -27,6 +51,7 @@ public class APITest {
     private PrivateKey privateKey;
     private PublicKey publicKey;
     private PublicKey bankPublicKey;
+    private Bank bank;
 
     @BeforeEach
     public void setUp() {
@@ -85,105 +110,57 @@ public class APITest {
         }
     }
 
-    @Test
-    public void openAccount_accountCreated_success() {
-
-        BankHelper bankHelper = new BankHelper();
-        bankThread = new Thread(bankHelper);
-        bankThread.start();
-
-        try {
-            bankResponse = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, 0);
-        } catch (GeneralSecurityException | IOException e) {
-            e.printStackTrace();
-        }
-
-        Assertions.assertEquals(ActionLabel.SUCCESS.getLabel(), bankResponse);
-
-    }
 
     @Test
-    public void openAccount_accountCreated_failure() {
+    public void manipulatedMessage_unitTest() throws NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException
+                                                        , GeneralSecurityException, IOException {
 
-        try {
-            bankResponse = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, 0);
-        } catch (GeneralSecurityException | IOException e) {
-            e.printStackTrace();
-        }
+        String clientText = null;
+        String DIGEST_ALGO = "SHA-256";
+	    String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 
-        Assertions.assertEquals(ActionLabel.FAIL.getLabel(), bankResponse);
+        // Timestamps are in UTC
+		Instant inst = Instant.now().plus(5, ChronoUnit.MINUTES);
+
+		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
+
+		Cipher encryptCipher = Cipher.getInstance(CIPHER_ALGO);
+
+		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
+		signCipher.init(Cipher.ENCRYPT_MODE, privateKey);
+
+		
+        // Create request message
+		JsonObject requestJson = JsonParser.parseString("{}").getAsJsonObject();
+		
+        // build info to be digested
+        JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
+        infoJson.addProperty("to", "BFTB");
+		infoJson.addProperty("from", username);
+        String bodyText = "mock body text";
+        int requestID = 0;
+        infoJson.addProperty("body", bodyText);
+        infoJson.addProperty("instant", Integer.toString(requestID));
+
+        // Digest the original message
+        msgDig.update(infoJson.toString().getBytes());
+        String macString = Base64.getEncoder().encodeToString(signCipher.doFinal(msgDig.digest()));
+        requestJson.addProperty("MAC", macString);
+
+        // Alter the original message
+        infoJson.remove("body");
+        infoJson.addProperty("body", "Altered body");
+
+        // Add the altered message to the Json to be sent
+        requestJson.add("info", infoJson);
+		
+
+
+
+        String response[] = bank.receiveMessageAndCheckSafety(requestJson.toString());
+
+        Assertions.assertEquals(ActionLabel.FAIL.getLabel(), response[0]);
     }
-
-/**TODO: Implement the following tests
-
-    @Test
-    public void openAccount_clientsFileCreated_success() {
-
-    }
-
-    @Test
-    public void openAccount_clientsFileCreated_failure() {
-
-    }
-
-    @Test
-    public void openAccount_completeTransactionsHistoryFileCreated_success() {
-
-    }
-
-    @Test
-    public void openAccount_completeTransactionsHistoryFileCreated_failure() {
-
-    }
-
-    @Test
-    public void openAccount_pendingTransactionsHistoryFileCreated_success() {
-
-    }
-
-    @Test
-    public void openAccount_pendingTransactionsHistoryFileCreated_failure() {
-
-    }
-
-    @Test
-    public void sendAmount_amountSent_success() {
-
-    }
-
-    @Test
-    public void sendAmount_amountSent_failure() {
-
-    }
-
-    @Test
-    public void checkAmount_success() {
-
-    }
-
-    @Test
-    public void checkAmount_failure() {
-
-    }
-
-    @Test
-    public void receiveAmount_amountReceived_success() {
-
-    }
-
-    @Test
-    public void receiveAmount_amountReceived_failure() {
-
-    }
-
-    @Test
-    public void auditAccount_success() {
-
-    }
-
-    @Test
-    public void auditAccount_failure() {
-
-    }
-    */
+    
 }
+
