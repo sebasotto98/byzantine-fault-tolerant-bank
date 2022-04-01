@@ -16,12 +16,20 @@ To safely store keys we shall use a key store, from the key tool package. To gen
 
 Which will generate a key store for each of the six clients.
 
-To generate a keyStore for a specific client use the following commands:
+To generate a keyStore for a specific client use the following command:
 ``` 
 keytool -genkey -alias clientX -keyalg RSA -keystore ks/clientX_KeystoreFile.jks
-keytool -export -alias clientX -file ks/clientX_Certificate.cer -keystore ks/clientX_KeystoreFile.jks
 ```
 
+Where clientX is the username of the client. For simplicity we use the client name for the alias but the user may choose any alias. 
+This command will ask for a password, a password confirmation, and multiple other fields, that can be left blank. After this it will be asked to confirm everything, just type "y" and press Enter. 
+
+
+To export the Public Certificate from the created keyStore use the following command: 
+``` 
+keytool -export -alias clientX -file ks/clientX_Certificate.cer -keystore ks/clientX_KeystoreFile.jks
+```
+Where the first clientX is the alias chosen previously and the second one is the client's name.
 
 # Compile and execute project
 
