@@ -8,13 +8,15 @@ public enum ActionLabel {
     RECEIVE_AMOUNT("ReceiveAmount"),
     AUDIT_ACCOUNT("AuditAccount"),
 
-    //TODO
+    //TODO label
     TODO("TODO"),
 
     //response labels
     ACCOUNT_CREATED("AccountCreated"),
+    DUPLICATE_USERNAME("DuplicateUsername"),
     PENDING_TRANSACTION("PendingTransaction"),
     INSUFFICIENT_AMOUNT("InsufficientAmount"),
+    NEGATIVE_AMOUNT("NegativeAmount"),
     CLIENT_NOT_FOUND("ClientNotFound"),
     CLIENT_NOT_RECEIVER("ClientNotReceiver"),
     COMPLETED_TRANSACTION("CompletedTransaction"),
@@ -23,7 +25,7 @@ public enum ActionLabel {
     FAIL("Fail"),
     SUCCESS("Success"),
 
-    //OTHERS
+    //other labels
     UNKNOWN_FUNCTION("UNKNOWN_FUNCTION");
 
     private final String label;

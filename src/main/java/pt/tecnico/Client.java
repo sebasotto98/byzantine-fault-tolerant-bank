@@ -52,7 +52,7 @@ public class Client {
     private static PrivateKey getPrivateKey(String username, Scanner sc){
         PrivateKey pk = null;
 
-        KeyStore ks = null;
+        KeyStore ks;
         try {
             System.out.println("Please input alias for the keyStore entry.");
             String alias = sc.nextLine();
@@ -78,7 +78,7 @@ public class Client {
     }
 
     private static void savePrivateKey(PrivateKey privateKey, String username, Scanner sc) {
-        KeyStore ks = null;
+        KeyStore ks;
         try {
 
             System.out.println("Please input alias for the keyStore entry.");
@@ -186,7 +186,7 @@ public class Client {
 
                 int numberOfTries = 0;
                 do {
-                    bankResponse = api.auditAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID, owner, ownerKey);
+                    bankResponse = api.auditAccount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID, owner, ownerKey);
                     if (bankResponse != null) {
                         if (bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
                             System.out.println("Owner's account not found!");
@@ -257,7 +257,7 @@ public class Client {
 
                 int numberOfTries = 0;
                 do {
-                    bankResponse = api.receiveAmount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID, transactionId);
+                    bankResponse = api.receiveAmount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID, transactionId);
                     if (bankResponse != null) {
                         if (bankResponse.equals(ActionLabel.COMPLETED_TRANSACTION.getLabel())) {
                             System.out.println("Transaction completed and money transfered!");
@@ -312,7 +312,7 @@ public class Client {
 
                 int numberOfTries = 0;
                 do {
-                    bankResponse = api.checkAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID, owner, ownerKey);
+                    bankResponse = api.checkAccount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID, owner, ownerKey);
                     if(bankResponse != null) {
                         if (bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
                             System.out.println("Owner's account not found!");
@@ -393,12 +393,14 @@ public class Client {
 
                 int numberOfTries = 0;
                 do {
-                    bankResponse = api.sendAmount(publicKey, privateKey, destKey, port, bankPort, bankAddress, bankPublicKey, requestID, username, amount, usernameDest);
+                    bankResponse = api.sendAmount(privateKey, port, bankPort, bankAddress, bankPublicKey, requestID, username, amount, usernameDest);
                     if (bankResponse != null) {
                         if (bankResponse.equals(ActionLabel.PENDING_TRANSACTION.getLabel())) {
                             System.out.println("Transaction waiting for receiver approval!");
                         } else if (bankResponse.equals(ActionLabel.FAIL.getLabel())) {
                             System.out.println("Failed to send amount. An error occurred.");
+                        } else if (bankResponse.equals(ActionLabel.NEGATIVE_AMOUNT.getLabel())) {
+                            System.out.println("Not possible to send negative amount!");
                         } else if (bankResponse.equals(ActionLabel.INSUFFICIENT_AMOUNT.getLabel())) {
                             System.out.println("Insufficient available amount on sender account.");
                         } else if (bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
@@ -441,11 +443,13 @@ public class Client {
             privateKey = readPrivate(privateKeyPath);
             int numberOfTries = 0;
             do {
-                bankResponse = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID);
+                bankResponse = api.openAccount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, requestID);
                 if(bankResponse != null) {
-                    if (bankResponse.equals(ActionLabel.SUCCESS.getLabel())) {
+                    if (bankResponse.equals(ActionLabel.ACCOUNT_CREATED.getLabel())) {
                         System.out.println("Account opened successfully!");
                         savePrivateKey(privateKey, username, sc);
+                    } else if (bankResponse.equals(ActionLabel.DUPLICATE_USERNAME.getLabel())) {
+                        System.out.println("Client " + username + " already has an account.");
                     } else if (bankResponse.equals(ActionLabel.FAIL.getLabel())) {
                         System.out.println("Failed to open account.");
                     }

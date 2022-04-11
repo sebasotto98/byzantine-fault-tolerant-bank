@@ -1,11 +1,12 @@
-Functions:
-
+Stage 2 functions:
+	- Parallelize bank to allow multiple server replicas as (1,N) Byzantine Atomic registers
+	- Protect against DoS attacks
 Other:
-	- Allow connection to bank from clients in different machines
-	- Paralelize bank to allow multiple instances
-	- Use sequence number for freshness in both ways
-	- Make sequence number static to enable reuse
-	- Check csv file modification is secure
-	- Alter script to receive names as arguments
+	- Make sequence number persistent and unique to each user
 	- Store past signatures
-	- Fix bank business logic(negative transaction)
+	- Check that CSV file modification is secure
+	- Allow connection to bank from clients in different machines
+	- Alter script to receive names as arguments
+	- Receive bank name as argument
+	- Refactor to be more modular???
+	- Complete API and Bank unit tests

@@ -92,7 +92,7 @@ public class APITest {
         bankThread.start();
 
         try {
-            bankResponse = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, 0);
+            bankResponse = api.openAccount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, 0);
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
         }
@@ -105,7 +105,7 @@ public class APITest {
     public void openAccount_accountCreated_failure() {
 
         try {
-            bankResponse = api.openAccount(publicKey, privateKey, port, bankPort, bankAddress, bankPublicKey, username, 0);
+            bankResponse = api.openAccount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, 0);
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
         }
