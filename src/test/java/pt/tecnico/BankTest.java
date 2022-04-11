@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.beans.Transient;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -15,18 +14,9 @@ import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Base64;
-import java.lang.invoke.MethodHandles;
-import java.security.PublicKey;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketTimeoutException;
-import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.security.PrivateKey;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
 import javax.crypto.IllegalBlockSizeException;
 import java.security.InvalidKeyException; 
 import java.security.NoSuchAlgorithmException;
@@ -35,9 +25,6 @@ import javax.crypto.Cipher;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-
-
-import com.google.gson.JsonObject;
 
 public class BankTest {
 
@@ -51,7 +38,6 @@ public class BankTest {
     private PrivateKey privateKey;
     private PublicKey publicKey;
     private PublicKey bankPublicKey;
-    private Bank bank;
 
     @BeforeEach
     public void setUp() {
@@ -129,7 +115,6 @@ public class BankTest {
 		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
 		signCipher.init(Cipher.ENCRYPT_MODE, privateKey);
 
-		
         // Create request message
 		JsonObject requestJson = JsonParser.parseString("{}").getAsJsonObject();
 		
@@ -153,11 +138,8 @@ public class BankTest {
 
         // Add the altered message to the Json to be sent
         requestJson.add("info", infoJson);
-		
 
-
-
-        String response[] = bank.receiveMessageAndCheckSafety(requestJson.toString());
+        String[] response = Bank.receiveMessageAndCheckSafety(requestJson.toString());
 
         Assertions.assertEquals(ActionLabel.FAIL.getLabel(), response[0]);
     }

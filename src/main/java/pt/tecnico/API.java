@@ -28,10 +28,8 @@ public class API {
 
     private static final int BUFFER_SIZE = 65507;
     private static final int SOCKET_TIMEOUT = 5;
-    private final String DIGEST_ALGO = "SHA-256";
-	private final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 
-    public String openAccount(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort,
+	public String openAccount(PublicKey accountPublicKey, PrivateKey accountPrivateKey, int clientPort,
                             int serverPort, InetAddress serverAddress, PublicKey bankPublic, String username, int requestID)
                             throws GeneralSecurityException, IOException  {
 
@@ -114,8 +112,10 @@ public class API {
 		// Timestamps are in UTC
 		Instant inst = Instant.now().plus(SOCKET_TIMEOUT, ChronoUnit.MINUTES);
 
+		String DIGEST_ALGO = "SHA-256";
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 
+		String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 		Cipher encryptCipher = Cipher.getInstance(CIPHER_ALGO);
 
 		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);

@@ -1,3 +1,11 @@
 Functions:
 
-others: 
+Other:
+	- Allow connection to bank from clients in different machines
+	- Paralelize bank to allow multiple instances
+	- Use sequence number for freshness in both ways
+	- Make sequence number static to enable reuse
+	- Check csv file modification is secure
+	- Alter script to receive names as arguments
+	- Store past signatures
+	- Fix bank business logic(negative transaction)

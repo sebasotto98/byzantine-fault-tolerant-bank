@@ -10,7 +10,6 @@ import java.net.UnknownHostException;
 import java.security.*;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;

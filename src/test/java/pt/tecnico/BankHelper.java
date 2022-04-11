@@ -10,5 +10,4 @@ public class BankHelper implements Runnable {
         Bank.main(bankArgs);
     }
 
-
 }
