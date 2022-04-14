@@ -1,6 +1,16 @@
 Stage 2 functions:
+
+	Steps (recommend in instructions):
+		- replicate server N times. Clients loop and send request to the N servers
+		- Implement Byzantine Regular Register (section 4.7 of book)
+		- Transform Byzantine Regular Register into Byzantine Atomic Register
+		- Reason on what could happen if clients are malicious and protect if needed
+		- dependability tests
+
+
 	- Parallelize bank to allow multiple server replicas as (1,N) Byzantine Atomic registers
 	- Protect against DoS attacks
+	
 Other:
 	- Make sequence number persistent and unique to each user
 	- Store past signatures
