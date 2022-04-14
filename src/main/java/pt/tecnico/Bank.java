@@ -42,9 +42,10 @@ public class Bank {
 	private static final String DIGEST_ALGO = "SHA-256";
 	private static final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 	private static final String CLIENTS_CSV_FILE_PATH = "csv_files/clients.csv";
+	private static final String REQUESTID_CSV_FILE_PATH = "csv_files/requestIDs.csv";
 	private static int transactionId = 0;
 
-	private static final Hashtable<String, Integer> requestIds = new Hashtable<>();
+	private static int bankRequestId = 0;
 
 	public static KeyPair read(String publicKeyPath, String privateKeyPath) throws GeneralSecurityException, IOException {
         logger.info("Reading public key from file " + publicKeyPath + " ...");
@@ -105,6 +106,29 @@ public class Bank {
 		return new IvParameterSpec(initVec);
 	}
 
+	private static String getCurrentRequestIdFrom(String username){
+
+		FileReader fileReader;
+		BufferedReader reader;
+		String[] client;
+		try {
+			fileReader = new FileReader(REQUESTID_CSV_FILE_PATH);
+			reader = new BufferedReader(fileReader);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				client = line.split(",");
+				if(client[0].equals(username)) {
+					return client[1];
+				}
+			}
+			fileReader.close();
+			reader.close();
+		} catch (IOException e) {
+			logger.info("openAccount: Error reading requestId file.");
+		}
+		return "-1";
+	}
+
 	private static String setResponse(String[] bodyArray, String username) {
 		//bodyArray -> 1-amount, 2-receiver
 		if(bodyArray[0].equals(ActionLabel.OPEN_ACCOUNT.getLabel())) {
@@ -117,6 +141,10 @@ public class Bank {
 			return handleReceiveAmountRequest(username, bodyArray[1]);
 		} else if(bodyArray[0].equals(ActionLabel.AUDIT_ACCOUNT.getLabel())) {
 			return handleAuditAccountRequest(bodyArray[1]);
+		} else if(bodyArray[0].equals(ActionLabel.REQUEST_MY_ID.getLabel())){
+			return getCurrentRequestIdFrom(username);
+		} else if(bodyArray[0].equals(ActionLabel.REQUEST_BANK_ID.getLabel())){
+			return String.valueOf(bankRequestId);
 		} else {
 			return ActionLabel.UNKNOWN_FUNCTION.getLabel();
 		}
@@ -146,6 +174,8 @@ public class Bank {
 		writeToCSV(CLIENTS_CSV_FILE_PATH, new String[]{username, Integer.toString(INITIAL_ACCOUNT_BALANCE),
 				Integer.toString(INITIAL_ACCOUNT_BALANCE)}, true);
 		createTransactionHistoryFiles(username);
+
+		writeToCSV(REQUESTID_CSV_FILE_PATH, new String[]{username, Integer.toString(0)}, true);
 
 		return ActionLabel.ACCOUNT_CREATED.getLabel();
 	}
@@ -590,8 +620,10 @@ public class Bank {
 				JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
 				infoJson.addProperty("from", "BFTB");
 				infoJson.addProperty("to", response[1]);
-				infoJson.addProperty("requestId", String.valueOf(requestIds.get(response[1]) + 1));
+				infoJson.addProperty("requestId", Integer.toString(bankRequestId));
 				infoJson.addProperty("body", response[0]);
+
+				bankRequestId++;
 
 				responseJson.add("info", infoJson);
 
@@ -661,10 +693,16 @@ public class Bank {
 		signCipher.init(Cipher.DECRYPT_MODE, pubClientKey);
 
 		int idReceived = Integer.parseInt(requestId);
-		if (requestIds.get(from) == null) {
-			requestIds.put(from, idReceived);
-		} else if (idReceived <= requestIds.get(from)) {
+
+		String id = getCurrentRequestIdFrom(from);
+
+		int ID = Integer.parseInt(id);
+
+		if (idReceived <= ID) {
 			logger.info("Message is duplicate, shall be ignored");
+			response[0] = ActionLabel.FAIL.getLabel();
+		} else if(ID == -1){
+			logger.error("Client has no request ID");
 			response[0] = ActionLabel.FAIL.getLabel();
 		}
 

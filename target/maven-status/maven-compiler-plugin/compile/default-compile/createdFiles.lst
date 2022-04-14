@@ -1,4 +1,4 @@
-pt/tecnico/Client.class
-pt/tecnico/ActionLabel.class
-pt/tecnico/Bank.class
-pt/tecnico/API.class
+pt\tecnico\Client.class
+pt\tecnico\API.class
+pt\tecnico\Bank.class
+pt\tecnico\ActionLabel.class

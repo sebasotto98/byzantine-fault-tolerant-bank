@@ -7,6 +7,8 @@ public enum ActionLabel {
     CHECK_ACCOUNT("CheckAccount"),
     RECEIVE_AMOUNT("ReceiveAmount"),
     AUDIT_ACCOUNT("AuditAccount"),
+    REQUEST_MY_ID("RequestMyId"),
+    REQUEST_BANK_ID("RequestBankId"),
 
     //TODO label
     TODO("TODO"),

@@ -25,59 +25,81 @@ public class API {
 
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getSimpleName());
 
-    private static final int BUFFER_SIZE = 65507;
-    private static final int SOCKET_TIMEOUT = 5000;
+	private static final int BUFFER_SIZE = 65507;
+	private static final int SOCKET_TIMEOUT = 5000;
 
-	private static final Hashtable<String, Integer> requestIds = new Hashtable<>();
+	private static int bankRequestID = Integer.MIN_VALUE;
+
+	public String[] requestIDs(PrivateKey privateKey, int clientPort, int serverPort,
+							   InetAddress serverAddress, PublicKey bankPublic, String username,
+							   int requestID, String bankName)
+								throws GeneralSecurityException, IOException {
+		String[] response = new String[2];
+
+		response[0] = sendMessageAndReceiveBody(privateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
+				username, ActionLabel.REQUEST_MY_ID.getLabel(), requestID);
+
+		response[1] = sendMessageAndReceiveBody(privateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
+				username, ActionLabel.REQUEST_BANK_ID.getLabel(), requestID);
+
+		bankRequestID = Integer.parseInt(response[1]);
+
+		return response;
+	}
 
 	public String openAccount(PrivateKey accountPrivateKey, int clientPort,
-                            int serverPort, InetAddress serverAddress, PublicKey bankPublic, String username, int requestID)
-                            throws GeneralSecurityException, IOException  {
+							  int serverPort, InetAddress serverAddress,
+							  PublicKey bankPublic, String username, int requestID, String bankName)
+			throws GeneralSecurityException, IOException  {
 
-        String body = sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic,
+		String body = sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
 				username, ActionLabel.OPEN_ACCOUNT.getLabel(), requestID);
-		
+
 		return body;
-    }
+	}
 
-    public String sendAmount(PrivateKey sourcePrivateKey, int clientPort,
-						   int serverPort, InetAddress serverAddress, PublicKey bankPublic, int requestID, String username, float amount, String usernameDest)
+	public String sendAmount(PrivateKey sourcePrivateKey, int clientPort,
+							 int serverPort, InetAddress serverAddress, String bankName,
+							 PublicKey bankPublic, int requestID, String username, float amount, String usernameDest)
 			throws GeneralSecurityException, IOException {
 
-    	String bodyText = ActionLabel.SEND_AMOUNT.getLabel() + "," + amount + "," + usernameDest;
+		String bodyText = ActionLabel.SEND_AMOUNT.getLabel() + "," + amount + "," + usernameDest;
 
-		return sendMessageAndReceiveBody(sourcePrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
-    }
+		return sendMessageAndReceiveBody(sourcePrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic, username, bodyText, requestID);
+	}
 
-    public String checkAccount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
-							   InetAddress serverAddress, PublicKey bankPublic, String username, int requestID, String owner, PublicKey ownerKey)
+	public String checkAccount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
+							   InetAddress serverAddress, String bankName,
+							   PublicKey bankPublic, String username, int requestID, String owner)
 			throws GeneralSecurityException, IOException {
 
-    	String bodyText = ActionLabel.CHECK_ACCOUNT.getLabel() + "," + owner;
+		String bodyText = ActionLabel.CHECK_ACCOUNT.getLabel() + "," + owner;
 
-		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
-    }
+		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic, username, bodyText, requestID);
+	}
 
-    public String receiveAmount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
-								InetAddress serverAddress, PublicKey bankPublic, String username, int requestID, int transactionId)
-							throws GeneralSecurityException, IOException  {
+	public String receiveAmount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
+								InetAddress serverAddress, String bankName,
+								PublicKey bankPublic, String username, int requestID, int transactionId)
+			throws GeneralSecurityException, IOException  {
 		String bodyText = ActionLabel.RECEIVE_AMOUNT.getLabel() + "," + transactionId;
 
-		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
-    }
+		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic, username, bodyText, requestID);
+	}
 
-    public String auditAccount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
-					  InetAddress serverAddress, PublicKey bankPublic, String username, int requestID, String owner, PublicKey ownerKey)
+	public String auditAccount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
+							   InetAddress serverAddress, String bankName,
+							   PublicKey bankPublic, String username, int requestID, String owner)
 			throws GeneralSecurityException, IOException {
 
 		String bodyText = ActionLabel.AUDIT_ACCOUNT.getLabel() + "," + owner;
 
-		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankPublic, username, bodyText, requestID);
+		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic, username, bodyText, requestID);
 	}
 
-    private String checkMessage(Cipher encryptCipher, String mac, MessageDigest msgDig, JsonObject infoJson,
-                            String requestIdBank, String from) {
-        byte[] macBytes = null;
+	private String checkMessage(Cipher encryptCipher, String mac, MessageDigest msgDig, JsonObject infoJson,
+								String requestIdBank, String from) {
+		byte[] macBytes = null;
 		try {
 			macBytes = encryptCipher.doFinal(Base64.getDecoder().decode(mac));
 		} catch (Exception e) {
@@ -93,19 +115,19 @@ public class API {
 			result = ActionLabel.FAIL.getLabel();
 		}
 		int idReceived = Integer.parseInt(requestIdBank);
-		if (requestIds.get(from) == null) {
-			requestIds.put(from, idReceived);
-		} else if (idReceived <= requestIds.get(from)) {
+		if (idReceived <= bankRequestID) {
 			logger.info("Message is duplicate, shall be ignored");
 			result = ActionLabel.FAIL.getLabel();
+		} else {
+			bankRequestID = idReceived;
 		}
-        return result;
-    }
+		return result;
+	}
 
 	private String sendMessageAndReceiveBody(PrivateKey accountPrivateKey, int clientPort,
-											int serverPort, InetAddress serverAddress, PublicKey bankPublic, String username, 
-											String bodyText, int requestID) 
-											throws GeneralSecurityException, IOException  {
+											 int serverPort, InetAddress serverAddress, String bankName, PublicKey bankPublic, String username,
+											 String bodyText, int requestID)
+			throws GeneralSecurityException, IOException  {
 
 		String DIGEST_ALGO = "SHA-256";
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
@@ -119,23 +141,23 @@ public class API {
 		// Create socket
 		DatagramSocket socket = new DatagramSocket(clientPort);
 		socket.setSoTimeout(SOCKET_TIMEOUT);
-        // Create request message
+		// Create request message
 		JsonObject requestJson = JsonParser.parseString("{}").getAsJsonObject();
-		
-        JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
-        infoJson.addProperty("to", "BFTB");
+
+		JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
+		infoJson.addProperty("to", bankName);
 		infoJson.addProperty("from", username);
-        infoJson.addProperty("body", bodyText);
-        infoJson.addProperty("requestId", Integer.toString(requestID));
+		infoJson.addProperty("body", bodyText);
+		infoJson.addProperty("requestId", Integer.toString(requestID));
 
-        requestJson.add("info", infoJson);
+		requestJson.add("info", infoJson);
 
-        msgDig.update(infoJson.toString().getBytes());
-        String macString = Base64.getEncoder().encodeToString(signCipher.doFinal(msgDig.digest()));
-        requestJson.addProperty("MAC", macString);
-		
+		msgDig.update(infoJson.toString().getBytes());
+		String macString = Base64.getEncoder().encodeToString(signCipher.doFinal(msgDig.digest()));
+		requestJson.addProperty("MAC", macString);
+
 		logger.info("Request message: " + requestJson);
-		
+
 		// Send request
 		byte[] clientData = requestJson.toString().getBytes();
 		logger.info(String.format("%d bytes %n", clientData.length));
@@ -169,18 +191,18 @@ public class API {
 
 		// Parse JSON and extract arguments
 		JsonObject responseJson = JsonParser.parseString(serverText).getAsJsonObject();
-        JsonObject infoBankJson;
+		JsonObject infoBankJson;
 		String from, body, to, mac, requestIdBank;
-		
-        infoBankJson = responseJson.getAsJsonObject("info");
-        from = infoBankJson.get("from").getAsString();
-        to = infoBankJson.get("to").getAsString();
-        body = infoBankJson.get("body").getAsString();
-        requestIdBank = infoBankJson.get("requestId").getAsString();
-        
-        mac = responseJson.get("MAC").getAsString();
-		
-        String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from);
+
+		infoBankJson = responseJson.getAsJsonObject("info");
+		from = infoBankJson.get("from").getAsString();
+		to = infoBankJson.get("to").getAsString();
+		body = infoBankJson.get("body").getAsString();
+		requestIdBank = infoBankJson.get("requestId").getAsString();
+
+		mac = responseJson.get("MAC").getAsString();
+
+		String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from);
 
 		socket.close();
 		logger.info("Socket closed");
@@ -190,5 +212,5 @@ public class API {
 		} else {
 			return body;
 		}
-    }
+	}
 }

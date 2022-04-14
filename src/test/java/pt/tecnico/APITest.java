@@ -27,7 +27,7 @@ public class APITest {
     private PublicKey publicKey;
     private PublicKey bankPublicKey;
 
-    @BeforeEach
+    /*@BeforeEach
     public void setUp() {
         api = new API();
 
@@ -111,7 +111,7 @@ public class APITest {
         }
 
         Assertions.assertEquals(ActionLabel.FAIL.getLabel(), bankResponse);
-    }
+    }*/
 
 /**TODO: Implement the following tests
 
