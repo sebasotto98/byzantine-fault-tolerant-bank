@@ -43,11 +43,11 @@ To compile simply go to the main folder (`SEC_PROJECT`), and execute the followi
 
 ### Run bank server
 
-`mvn exec:java -Dmainclass=pt.tecnico.Bank -Dexec.args="5001 bank"`
+`mvn exec:java -Dmainclass=pt.tecnico.Bank -Dexec.args="5001 BANK_NAME"`
 
 ### Run client server
 
-`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001 bank"`
+`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001 BANK_NAME"`
 
 This will run a functional client server, with all command options to execute.
 
@@ -56,7 +56,7 @@ This will run a functional client server, with all command options to execute.
 To run a pre-built exemple, simply pass it as input. We have provided one of these exemples.
 
 
-`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001" < inputExemple`
+`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001 BANK_NAME" < inputExemple`
 
 
 This inputExemple is an exemple of a possible usage, with all commands being executed.
