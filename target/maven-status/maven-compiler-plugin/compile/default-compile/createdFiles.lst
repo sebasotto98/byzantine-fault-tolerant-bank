@@ -2,3 +2,5 @@ pt\tecnico\Client.class
 pt\tecnico\API.class
 pt\tecnico\Bank.class
 pt\tecnico\ActionLabel.class
+pt\tecnico\VolatileBankInfo.class
+pt\tecnico\WorkerThread.class

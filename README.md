@@ -41,11 +41,11 @@ To compile simply go to the main folder (`SEC_PROJECT`), and execute the followi
 
 ### Run bank server
 
-`mvn exec:java -Dmainclass=pt.tecnico.Bank -Dexec.args="5001 BANK_NAME"`
+`mvn exec:java -Dmainclass=pt.tecnico.Bank -Dexec.args="BANK_PORT BANK_NAME INITIAL_THREAD_PORT NUMBER_OF_THREADS"`
 
 ### Run client server
 
-`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001 BANK_NAME"`
+`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="CLIENT_PORT BANK_PORT BANK_NAME"`
 
 This will run a functional client server, with all command options to execute.
 
