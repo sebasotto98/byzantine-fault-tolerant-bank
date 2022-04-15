@@ -39,6 +39,8 @@ public class Bank {
 
 	private static final int INITIAL_ACCOUNT_BALANCE = 1000;
 
+	private static String bankName = null;
+
 	private static final String DIGEST_ALGO = "SHA-256";
 	private static final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 	private static final String CLIENTS_CSV_FILE_PATH = "csv_files/clients.csv";
@@ -604,11 +606,12 @@ public class Bank {
 
 	public static void main(String[] args) {
 		// Check arguments
-		if (args.length < 1) {
+		if (args.length < 2) {
 			System.err.println("Argument(s) missing!");
 			return;
 		}
 		final int port = Integer.parseInt(args[0]);
+		bankName = args[1];
 		MessageDigest msgDig = null;
 		Cipher decryptCipher = null;
 		PrivateKey privKey = null;
@@ -617,9 +620,8 @@ public class Bank {
 			msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 			decryptCipher = Cipher.getInstance(CIPHER_ALGO);
 
-			PublicKey pubKey = readPublic("keys/bank_public_key.der");
-			privKey = readPrivate("keys/bank_private_key.der");
-			PublicKey pubClientKey = null; //readPublic("keys/pis_public_key.der");
+			PublicKey pubKey = readPublic("keys/" + bankName + "_public_key.der");
+			privKey = readPrivate("keys/" + bankName + "_private_key.der");
 
 			Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
 		} catch (GeneralSecurityException | IOException e) {
