@@ -47,7 +47,7 @@ To compile simply go to the main folder (`SEC_PROJECT`), and execute the followi
 
 ### Run client server
 
-`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001"`
+`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001 bank"`
 
 This will run a functional client server, with all command options to execute.
 

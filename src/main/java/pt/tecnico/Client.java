@@ -145,10 +145,12 @@ public class Client {
                     PrivateKey privateKey = getPrivateKey(username, sc);
                     if(privateKey != null){
                         try {
-                            String[] requestedIDS = api.requestIDs(privateKey, port, bankPort, bankAddress, bankPublicKey, username, Integer.MAX_VALUE, bankName);
+                            //initial ID request with max_value
+                            String[] requestedIDS = api.requestIDs(privateKey, port, bankPort, bankAddress,
+                                    bankPublicKey, username, Integer.MAX_VALUE, bankName);
 
                             submenu(sc, port, bankPort, bankAddress, bankPublicKey, bankName, privateKey,
-                                    username, Integer.parseInt(requestedIDS[0]));
+                                    username, Integer.parseInt(requestedIDS[0]) + 1);
                             privateKey = null;
                         } catch (GeneralSecurityException | IOException e) {
                             logger.error("Error: ", e);

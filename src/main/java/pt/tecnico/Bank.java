@@ -129,6 +129,40 @@ public class Bank {
 		return "-1";
 	}
 
+	private static void updateRequestID(String username, String requestID){
+		//get list of clients
+		FileReader fileReader;
+		BufferedReader reader;
+		String[] client;
+		List<String[]> clients = new ArrayList<>();
+		try {
+			fileReader = new FileReader(REQUESTID_CSV_FILE_PATH);
+			reader = new BufferedReader(fileReader);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				client = line.split(",");
+				clients.add(client);
+			}
+			fileReader.close();
+			reader.close();
+		} catch (IOException e) {
+			logger.info("openAccount: Error reading requestId file.");
+		}
+
+		for(String[] c: clients){
+			if(c[0].equals(username)){
+				c[1] = requestID;
+				break;
+			}
+		}
+		String path = "csv_files/requestIDs.csv";
+		boolean flag = false;
+		for(String[] c: clients){
+			writeToCSV(path, c, flag);
+			flag = true;
+		}
+	}
+
 	private static String setResponse(String[] bodyArray, String username) {
 		//bodyArray -> 1-amount, 2-receiver
 		if(bodyArray[0].equals(ActionLabel.OPEN_ACCOUNT.getLabel())) {
@@ -704,6 +738,8 @@ public class Bank {
 		} else if(ID == -1){
 			logger.error("Client has no request ID");
 			response[0] = ActionLabel.FAIL.getLabel();
+		} else if(idReceived != Integer.MAX_VALUE){ //valid request id
+			updateRequestID(from, requestId);
 		}
 
 		byte[] macBytes;
