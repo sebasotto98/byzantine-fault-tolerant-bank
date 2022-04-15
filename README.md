@@ -7,7 +7,6 @@ To run the script simply execute:
 
 `./generateKeys.sh`
 
-
 # Generate Key Stores to safely keep keys
 
 To safely store keys we shall use a key store, from the key tool package. To generate this, simply run:
@@ -23,7 +22,6 @@ keytool -genkey -alias clientX -keyalg RSA -keystore ks/clientX_KeystoreFile.jks
 
 Where clientX is the username of the client. For simplicity we use the client name for the alias but the user may choose any alias. 
 This command will ask for a password, a password confirmation, and multiple other fields, that can be left blank. After this it will be asked to confirm everything, just type "y" and press Enter. 
-
 
 To export the Public Certificate from the created keyStore use the following command: 
 ``` 
@@ -51,20 +49,16 @@ To compile simply go to the main folder (`SEC_PROJECT`), and execute the followi
 
 This will run a functional client server, with all command options to execute.
 
-##### Runing with demo application
+##### Running demo application
 
-To run a pre-built exemple, simply pass it as input. We have provided one of these exemples.
+To run a pre-built example, simply pass it as input. We have provided one of these exemples.
 
+`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001 BANK_NAME" < inputExample`
 
-`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001 BANK_NAME" < inputExemple`
-
-
-This inputExemple is an exemple of a possible usage, with all commands being executed.
-
+This file is an example of a possible usage, with all commands being executed.
 
 ### Run tests
 
 To run the tests we have provided, it is enough to run
 
 `mvn test`
-
