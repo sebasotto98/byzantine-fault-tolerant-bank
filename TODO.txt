@@ -12,9 +12,7 @@ Stage 2 functions:
 	- Protect against DoS attacks
 	
 Other:
-	- Store past signatures
 	- Check that CSV file modification is secure
 	- Allow connection to bank from clients in different machines
-	- Alter script to receive names as arguments
 	- Refactor to be more modular???
 	- Complete API and Bank unit tests

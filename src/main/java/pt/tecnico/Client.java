@@ -51,7 +51,7 @@ public class Client {
         return priv;
     }
 
-    private static PrivateKey getPrivateKey(String username, Scanner sc){
+    private static PrivateKey getPrivateKey(String username, Scanner sc) {
         PrivateKey pk = null;
 
         KeyStore ks;
@@ -126,9 +126,11 @@ public class Client {
             logger.error("Error: ", e);
         }
         Scanner sc = new Scanner(System.in);
-        int ch = 0;
+        showMainMenu(port, bankPort, bankName, bankAddress, bankPublicKey, sc);
+    }
 
-        //main menu
+    private static void showMainMenu(int port, int bankPort, String bankName, InetAddress bankAddress, PublicKey bankPublicKey, Scanner sc) {
+        int ch;
         while (true) {
             System.out.println("\n ***BFTB***");
             System.out.println("1. Open Account \n2. Log in \n3. Exit \n ");
@@ -143,22 +145,20 @@ public class Client {
                     System.out.println("Please input your username.");
                     String username = sc.nextLine();
                     PrivateKey privateKey = getPrivateKey(username, sc);
-                    if(privateKey != null){
+                    if (privateKey != null) {
                         try {
-                            //initial ID request with max_value
-                            String[] requestedIDS = api.requestIDs(privateKey, port, bankPort, bankAddress,
+                            String requestedID = api.setInitialRequestIDs(privateKey, port, bankPort, bankAddress,
                                     bankPublicKey, username, Integer.MAX_VALUE, bankName);
 
-                            submenu(sc, port, bankPort, bankAddress, bankPublicKey, bankName, privateKey,
-                                    username, Integer.parseInt(requestedIDS[0]) + 1);
-                            privateKey = null;
+                            showSubmenu(sc, port, bankPort, bankAddress, bankPublicKey, bankName, privateKey,
+                                    username, Integer.parseInt(requestedID) + 1);
                         } catch (GeneralSecurityException | IOException e) {
                             logger.error("Error: ", e);
                         }
                     } else {
+                        logger.info("Private key is null.");
                         System.out.println("Impossible to log in.");
                     }
-
                     break;
                 case 3:
                     System.out.println("Thank you for using BFTB.");
@@ -169,17 +169,16 @@ public class Client {
         }
     }
 
-    public static void submenu(Scanner sc, int port, int bankPort,  InetAddress bankAddress,
-                               PublicKey bankPublicKey, String bankName,
-                               PrivateKey privateKey, String username, int requestID){
-
-        int ch = 0;
-        while (ch!=6) {
+    public static void showSubmenu(Scanner sc, int port, int bankPort, InetAddress bankAddress,
+                                   PublicKey bankPublicKey, String bankName,
+                                   PrivateKey privateKey, String username, int requestID) {
+        int ch;
+        while (true) {
             System.out.println("\n ***BFTB***");
             System.out.println("1. Send amount \n2. Check account \n3. Receive amount \n4. Audit account \n5. Log out ");
             System.out.println("Please enter your choice: ");
             ch = sc.nextInt();
-            sc.nextLine();//flush
+            sc.nextLine();
             switch (ch) {
                 case 1:
                     requestID = handleSendAmount(port, bankPort, bankAddress, requestID, bankPublicKey, sc, bankName, privateKey, username);
@@ -208,7 +207,6 @@ public class Client {
         try {
             System.out.println("Please input username of the account's owner (to fetch public key).");
             String owner = sc.nextLine();
-
             int numberOfTries = 0;
             do {
                 bankResponse = api.auditAccount(privateKey, port, bankPort, bankAddress, bankName, bankPublicKey, username, requestID, owner);
@@ -304,7 +302,7 @@ public class Client {
             int numberOfTries = 0;
             do {
                 bankResponse = api.checkAccount(privateKey, port, bankPort, bankAddress, bankName, bankPublicKey, username, requestID, owner);
-                if(bankResponse != null) {
+                if (bankResponse != null) {
                     if (bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
                         System.out.println("Owner's account not found!");
                     } else if (bankResponse.equals(ActionLabel.FAIL.getLabel())) {
@@ -338,7 +336,7 @@ public class Client {
                     bankResponse = ActionLabel.FAIL.getLabel();
                 }
                 numberOfTries++;
-            } while((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
+            } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
             requestID++;
 
         } catch (GeneralSecurityException | IOException e) {
@@ -375,7 +373,7 @@ public class Client {
                     } else if (bankResponse.equals(ActionLabel.INSUFFICIENT_AMOUNT.getLabel())) {
                         System.out.println("Insufficient available amount on sender account.");
                     } else if (bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
-                        System.out.println("Sender/Receiver account not found!");
+                        System.out.println("Sender/Receiver client not found or trying to send money to self!");
                     }
                 } else {
                     bankResponse = ActionLabel.FAIL.getLabel();
@@ -400,7 +398,7 @@ public class Client {
         System.out.println("Please input your username (to fetch public and private key).");
         username = sc.nextLine();
 
-        privateKeyPath = "keys/"+username+"_private_key.der";
+        privateKeyPath = "keys/" + username + "_private_key.der";
 
         //only used if success
         System.out.println("Please input alias for the keyStore entry.");
@@ -413,7 +411,7 @@ public class Client {
             int numberOfTries = 0;
             do {
                 bankResponse = api.openAccount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, -1, bankName);
-                if(bankResponse != null) {
+                if (bankResponse != null) {
                     if (bankResponse.equals(ActionLabel.ACCOUNT_CREATED.getLabel())) {
                         System.out.println("Account opened successfully!");
                         savePrivateKey(privateKey, username, sc, alias, passwordString);
@@ -426,7 +424,7 @@ public class Client {
                     bankResponse = ActionLabel.FAIL.getLabel();
                 }
                 numberOfTries++;
-            } while((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
+            } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
 
         } catch (GeneralSecurityException | IOException e) {
             logger.error("Error: ", e);

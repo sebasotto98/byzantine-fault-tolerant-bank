@@ -11,7 +11,6 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Hashtable;
 import java.util.List;
 
 import javax.crypto.Cipher;
@@ -36,54 +35,53 @@ public class Bank {
 	 * protocol, is 65,507 bytes (65,535 − 8 byte UDP header − 20 byte IP header).
 	 */
 	private static final int BUFFER_SIZE = (64 * 1024 - 1) - 8 - 20;
-
 	private static final int INITIAL_ACCOUNT_BALANCE = 1000;
-
-	private static String bankName = null;
 
 	private static final String DIGEST_ALGO = "SHA-256";
 	private static final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 	private static final String CLIENTS_CSV_FILE_PATH = "csv_files/clients.csv";
 	private static final String REQUESTID_CSV_FILE_PATH = "csv_files/requestIDs.csv";
-	private static int transactionId = 0;
 
+
+	private static String bankName;
+	private static int transactionId = 0;
 	private static int bankRequestId = 0;
 
 	public static KeyPair read(String publicKeyPath, String privateKeyPath) throws GeneralSecurityException, IOException {
-        logger.info("Reading public key from file " + publicKeyPath + " ...");
-        FileInputStream pubFis = new FileInputStream(publicKeyPath);
-        byte[] pubEncoded = new byte[pubFis.available()];
-        pubFis.read(pubEncoded);
-        pubFis.close();
+		logger.info("Reading public key from file " + publicKeyPath + " ...");
+		FileInputStream pubFis = new FileInputStream(publicKeyPath);
+		byte[] pubEncoded = new byte[pubFis.available()];
+		pubFis.read(pubEncoded);
+		pubFis.close();
 
-        X509EncodedKeySpec pubSpec = new X509EncodedKeySpec(pubEncoded);
-        KeyFactory keyFacPub = KeyFactory.getInstance("RSA");
-        PublicKey pub = keyFacPub.generatePublic(pubSpec);
+		X509EncodedKeySpec pubSpec = new X509EncodedKeySpec(pubEncoded);
+		KeyFactory keyFacPub = KeyFactory.getInstance("RSA");
+		PublicKey pub = keyFacPub.generatePublic(pubSpec);
 
-        logger.info("Reading private key from file " + privateKeyPath + " ...");
-        FileInputStream privFis = new FileInputStream(privateKeyPath);
-        byte[] privEncoded = new byte[privFis.available()];
-        privFis.read(privEncoded);
-        privFis.close();
+		logger.info("Reading private key from file " + privateKeyPath + " ...");
+		FileInputStream privFis = new FileInputStream(privateKeyPath);
+		byte[] privEncoded = new byte[privFis.available()];
+		privFis.read(privEncoded);
+		privFis.close();
 
-        PKCS8EncodedKeySpec privSpec = new PKCS8EncodedKeySpec(privEncoded);
-        KeyFactory keyFacPriv = KeyFactory.getInstance("RSA");
-        PrivateKey priv = keyFacPriv.generatePrivate(privSpec);
+		PKCS8EncodedKeySpec privSpec = new PKCS8EncodedKeySpec(privEncoded);
+		KeyFactory keyFacPriv = KeyFactory.getInstance("RSA");
+		PrivateKey priv = keyFacPriv.generatePrivate(privSpec);
 
-        KeyPair keys = new KeyPair(pub, priv);
-        return keys;
-    }
+		KeyPair keys = new KeyPair(pub, priv);
+		return keys;
+	}
 
 	public static PublicKey readPublic(String publicKeyPath) throws GeneralSecurityException, IOException {
 		logger.info("Reading public key from file " + publicKeyPath + " ...");
-        FileInputStream pubFis = new FileInputStream(publicKeyPath);
-        byte[] pubEncoded = new byte[pubFis.available()];
-        pubFis.read(pubEncoded);
-        pubFis.close();
+		FileInputStream pubFis = new FileInputStream(publicKeyPath);
+		byte[] pubEncoded = new byte[pubFis.available()];
+		pubFis.read(pubEncoded);
+		pubFis.close();
 
-        X509EncodedKeySpec pubSpec = new X509EncodedKeySpec(pubEncoded);
-        KeyFactory keyFacPub = KeyFactory.getInstance("RSA");
-        PublicKey pub = keyFacPub.generatePublic(pubSpec);
+		X509EncodedKeySpec pubSpec = new X509EncodedKeySpec(pubEncoded);
+		KeyFactory keyFacPub = KeyFactory.getInstance("RSA");
+		PublicKey pub = keyFacPub.generatePublic(pubSpec);
 
 		return pub;
 	}
@@ -108,7 +106,7 @@ public class Bank {
 		return new IvParameterSpec(initVec);
 	}
 
-	private static String getCurrentRequestIdFrom(String username){
+	private static String getCurrentRequestIdFrom(String username) {
 
 		FileReader fileReader;
 		BufferedReader reader;
@@ -119,7 +117,7 @@ public class Bank {
 			String line;
 			while ((line = reader.readLine()) != null) {
 				client = line.split(",");
-				if(client[0].equals(username)) {
+				if (client[0].equals(username)) {
 					return client[1];
 				}
 			}
@@ -131,7 +129,7 @@ public class Bank {
 		return "-1";
 	}
 
-	private static void updateRequestID(String username, String requestID){
+	private static void updateRequestID(String username, String requestID) {
 		//get list of clients
 		FileReader fileReader;
 		BufferedReader reader;
@@ -151,15 +149,15 @@ public class Bank {
 			logger.info("openAccount: Error reading requestId file.");
 		}
 
-		for(String[] c: clients){
-			if(c[0].equals(username)){
+		for (String[] c : clients) {
+			if (c[0].equals(username)) {
 				c[1] = requestID;
 				break;
 			}
 		}
 		String path = "csv_files/requestIDs.csv";
 		boolean flag = false;
-		for(String[] c: clients){
+		for (String[] c : clients) {
 			writeToCSV(path, c, flag);
 			flag = true;
 		}
@@ -167,19 +165,19 @@ public class Bank {
 
 	private static String setResponse(String[] bodyArray, String username) {
 		//bodyArray -> 1-amount, 2-receiver
-		if(bodyArray[0].equals(ActionLabel.OPEN_ACCOUNT.getLabel())) {
+		if (bodyArray[0].equals(ActionLabel.OPEN_ACCOUNT.getLabel())) {
 			return handleOpenAccount(username);
-		} else if(bodyArray[0].equals(ActionLabel.SEND_AMOUNT.getLabel())) {
+		} else if (bodyArray[0].equals(ActionLabel.SEND_AMOUNT.getLabel())) {
 			return handleSendAmountRequest(username, bodyArray[1], bodyArray[2]);
-		} else if(bodyArray[0].equals(ActionLabel.CHECK_ACCOUNT.getLabel())) {
+		} else if (bodyArray[0].equals(ActionLabel.CHECK_ACCOUNT.getLabel())) {
 			return handleCheckAccountRequest(bodyArray[1]);
-		} else if(bodyArray[0].equals(ActionLabel.RECEIVE_AMOUNT.getLabel())) {
+		} else if (bodyArray[0].equals(ActionLabel.RECEIVE_AMOUNT.getLabel())) {
 			return handleReceiveAmountRequest(username, bodyArray[1]);
-		} else if(bodyArray[0].equals(ActionLabel.AUDIT_ACCOUNT.getLabel())) {
+		} else if (bodyArray[0].equals(ActionLabel.AUDIT_ACCOUNT.getLabel())) {
 			return handleAuditAccountRequest(bodyArray[1]);
-		} else if(bodyArray[0].equals(ActionLabel.REQUEST_MY_ID.getLabel())){
+		} else if (bodyArray[0].equals(ActionLabel.REQUEST_MY_ID.getLabel())) {
 			return getCurrentRequestIdFrom(username);
-		} else if(bodyArray[0].equals(ActionLabel.REQUEST_BANK_ID.getLabel())){
+		} else if (bodyArray[0].equals(ActionLabel.REQUEST_BANK_ID.getLabel())) {
 			return String.valueOf(bankRequestId);
 		} else {
 			return ActionLabel.UNKNOWN_FUNCTION.getLabel();
@@ -196,7 +194,7 @@ public class Bank {
 			String line;
 			while ((line = reader.readLine()) != null) {
 				client = line.split(",");
-				if(client[0].equals(username)) {
+				if (client[0].equals(username)) {
 					return ActionLabel.DUPLICATE_USERNAME.getLabel();
 				}
 			}
@@ -226,7 +224,7 @@ public class Bank {
 			String line;
 			while ((line = reader.readLine()) != null) {
 				client = line.split(",");
-				if(client[0].equals(owner)) {
+				if (client[0].equals(owner)) {
 					break;
 				}
 			}
@@ -237,14 +235,14 @@ public class Bank {
 			return ActionLabel.FAIL.getLabel();
 		}
 
-		if(client == null) {
+		if (client == null) {
 			return ActionLabel.CLIENT_NOT_FOUND.getLabel();
 		} else {
 			StringBuilder response = new StringBuilder();
-			for(int i = 0; i < client.length; i++) {
+			for (int i = 0; i < client.length; i++) {
 				String s = client[i];
 				response.append(s);
-				if(i != client.length - 1) { //last one doesn't need ","
+				if (i != client.length - 1) { //last one doesn't need ","
 					response.append(",");
 				}
 			}
@@ -279,7 +277,7 @@ public class Bank {
 			String line;
 			while ((line = reader.readLine()) != null) {
 				client = line.split(",");
-				if(client[0].equals(owner)) {
+				if (client[0].equals(owner)) {
 					break;
 				}
 			}
@@ -290,14 +288,14 @@ public class Bank {
 			return ActionLabel.FAIL.getLabel();
 		}
 
-		if(client == null) {
+		if (client == null) {
 			return ActionLabel.CLIENT_NOT_FOUND.getLabel();
 		} else {
 			StringBuilder response = new StringBuilder();
-			for(int i = 0; i < client.length; i++) {
+			for (int i = 0; i < client.length; i++) {
 				String s = client[i];
 				response.append(s);
-				if(i != client.length - 1) { //last one doesn't need ","
+				if (i != client.length - 1) { //last one doesn't need ","
 					response.append(",");
 				}
 			}
@@ -345,32 +343,32 @@ public class Bank {
 
 		boolean senderFound = false;
 		boolean receiverFound = false;
-		for(String[] c : clients) {
+		for (String[] c : clients) {
 			System.out.print("c[0]:");
 			System.out.println("|" + c[0] + "|");
-			if(c[0].equals(username)) {
+			if (c[0].equals(username)) {
 				//c -> 0-username, 1-available amount, 2-book
 				//check negative amount
-				if(Float.parseFloat(amount) < 0) {
+				if (Float.parseFloat(amount) < 0) {
 					return ActionLabel.NEGATIVE_AMOUNT.getLabel();
 				}
 				//check available amount
 				float final_amount = Float.parseFloat(c[1]) - Float.parseFloat(amount);
-				if(final_amount >= 0) {
+				if (final_amount >= 0) {
 					c[1] = String.valueOf(final_amount);
 				} else {
 					return ActionLabel.INSUFFICIENT_AMOUNT.getLabel();
 				}
 				senderFound = true;
-			} else if(c[0].equals(receiver)) {
+			} else if (c[0].equals(receiver)) {
 				receiverFound = true;
 			}
 		}
 
-		if(receiverFound && senderFound) {
+		if (receiverFound && senderFound) {
 			//this boolean is used to overwrite file. First call to write overwrites files and following call just append
 			boolean flag = false;
-			for(String[] c: clients) {
+			for (String[] c : clients) {
 				writeToCSV(CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
 				flag = true;
 			}
@@ -392,13 +390,12 @@ public class Bank {
 
 			return ActionLabel.PENDING_TRANSACTION.getLabel();
 		} else {
-			logger.info("sendAmount: Sender/Receiver client not found!");
+			logger.info("sendAmount: Sender/Receiver client not found or trying to send money to self!");
 			return ActionLabel.CLIENT_NOT_FOUND.getLabel();
 		}
 	}
 
-	private static String handleReceiveAmountRequest(String username, String id){
-
+	private static String handleReceiveAmountRequest(String username, String id) {
 		//get account information
 		String[] client;
 		List<String[]> clients = new ArrayList<>();
@@ -419,15 +416,15 @@ public class Bank {
 			return ActionLabel.FAIL.getLabel();
 		}
 
-		
+
 		boolean usernameFound = false;
-		for(String[] c: clients){
+		for (String[] c : clients) {
 			System.out.print("c[0]:");
 			System.out.println("|" + c[0] + "|");
-			if(c[0].equals(username)){
+			if (c[0].equals(username)) {
 				//c -> 0-username, 1-available amount, 2-book
 				usernameFound = true;
-			} 
+			}
 		}
 
 		String[] pendingTransaction;
@@ -453,25 +450,25 @@ public class Bank {
 		boolean receiverFound = false;
 		boolean senderFound = false;
 		String[] receiverTransaction = null;
-		for(String[] t: pendingTransactions){
+		for (String[] t : pendingTransactions) {
 			System.out.print("c[0]:");
 			System.out.println("|" + t[0] + "|");
-			if(t[0].equals(id)){
+			if (t[0].equals(id)) {
 				//c -> 0-id, 1-timestamp, 2-sender 3-receiver 4-amount
 				//check if client is receiver
-				if (t[3].equals(username)){
+				if (t[3].equals(username)) {
 					transactionFound = true;
-					for(String[] c: clients){
+					for (String[] c : clients) {
 						System.out.print("c[0]:");
 						System.out.println("|" + c[0] + "|");
-						if(c[0].equals(username)){
+						if (c[0].equals(username)) {
 							//c -> 0-username, 1-available amount, 2-book
 							receiverFound = true;
 							float available_final_amount = Float.parseFloat(c[1]) + Float.parseFloat(t[4]);
 							float book_final_amount = Float.parseFloat(c[1]) + Float.parseFloat(t[4]);
 							c[1] = String.valueOf(available_final_amount);
 							c[2] = String.valueOf(book_final_amount);
-						} else if (c[0].equals(t[2])){
+						} else if (c[0].equals(t[2])) {
 							senderFound = true;
 							sender = c[0];
 							float final_amount = Float.parseFloat(c[2]) - Float.parseFloat(t[4]);
@@ -479,17 +476,17 @@ public class Bank {
 						}
 					}
 					receiverTransaction = t;
-				} else{
+				} else {
 					return ActionLabel.CLIENT_NOT_RECEIVER.getLabel();
 				}
-				
-			} 
+
+			}
 		}
-		
-		if(usernameFound && transactionFound && senderFound && receiverFound) {
+
+		if (usernameFound && transactionFound && senderFound && receiverFound) {
 			//this boolean is used to overwrite file. First call to write overwrites files and following call just append
 			boolean flag = false;
-			for(String[] c: clients){
+			for (String[] c : clients) {
 				writeToCSV(CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
 				flag = true;
 			}
@@ -505,11 +502,11 @@ public class Bank {
 				String line;
 				while ((line = reader.readLine()) != null) {
 					pendingTransactionSender = line.split(",");
-					if (pendingTransactionSender[0].equals(id)){
+					if (pendingTransactionSender[0].equals(id)) {
 						transactionInSender = pendingTransactionSender;
 					}
 					pendingTransactionsSender.add(pendingTransactionSender);
-					
+
 				}
 				fileReader.close();
 				reader.close();
@@ -517,7 +514,7 @@ public class Bank {
 				System.out.println("sendAmount: Error reading clients file.");
 				return ActionLabel.FAIL.getLabel();
 			}
-			
+
 			pendingTransactions.remove(receiverTransaction);
 			pendingTransactionsSender.remove(transactionInSender);
 
@@ -532,38 +529,38 @@ public class Bank {
 			System.out.println("");
 			System.out.println("");
 
-			if (pendingTransactions.size() == 0){
+			if (pendingTransactions.size() == 0) {
 				// clear all contents of file
-				try{
+				try {
 					File pendingTransactionHistoryFile = new File("csv_files/" + username + "_pending_transaction_history.csv");
 					pendingTransactionHistoryFile.delete();
 					pendingTransactionHistoryFile.createNewFile();
-				} catch (IOException e){
+				} catch (IOException e) {
 					System.out.println("sendAmount: Error reading clients file.");
 					return ActionLabel.FAIL.getLabel();
 				}
-			} else{
+			} else {
 				flag = false;
-				for(String[] t: pendingTransactions){
-					writeToCSV(receiverPendingTransactionsFile,t,flag); //rewrite pending transaction of receiver file
+				for (String[] t : pendingTransactions) {
+					writeToCSV(receiverPendingTransactionsFile, t, flag); //rewrite pending transaction of receiver file
 					flag = true;
 				}
 			}
 
-			if (pendingTransactionsSender.size() == 0){
+			if (pendingTransactionsSender.size() == 0) {
 				// clear all contents of file
-				try{
+				try {
 					File pendingTransactionHistoryFile = new File("csv_files/" + sender + "_pending_transaction_history.csv");
 					pendingTransactionHistoryFile.delete();
 					pendingTransactionHistoryFile.createNewFile();
-				} catch (IOException e){
+				} catch (IOException e) {
 					System.out.println("sendAmount: Error reading clients file.");
 					return ActionLabel.FAIL.getLabel();
 				}
-			} else{
+			} else {
 				flag = false;
-				for(String[] t: pendingTransactionsSender){
-					writeToCSV(senderPendingTransactionsFile,t,flag); //rewrite pending transaction of sender  file
+				for (String[] t : pendingTransactionsSender) {
+					writeToCSV(senderPendingTransactionsFile, t, flag); //rewrite pending transaction of sender  file
 					flag = true;
 				}
 			}
@@ -582,14 +579,14 @@ public class Bank {
 	private static void createTransactionHistoryFiles(String username) {
 		File completeTransactionHistoryFile = new File("csv_files/" + username + "_complete_transaction_history.csv");
 		File pendingTransactionHistoryFile = new File("csv_files/" + username + "_pending_transaction_history.csv");
-		if(!completeTransactionHistoryFile.exists()) {
+		if (!completeTransactionHistoryFile.exists()) {
 			try {
 				completeTransactionHistoryFile.createNewFile();
 			} catch (IOException e) {
 				logger.error("Error: ", e);
 			}
 		}
-		if(!pendingTransactionHistoryFile.exists()) {
+		if (!pendingTransactionHistoryFile.exists()) {
 			try {
 				pendingTransactionHistoryFile.createNewFile();
 			} catch (IOException e) {
@@ -620,17 +617,12 @@ public class Bank {
 			msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 			decryptCipher = Cipher.getInstance(CIPHER_ALGO);
 
-			PublicKey pubKey = readPublic("keys/" + bankName + "_public_key.der");
 			privKey = readPrivate("keys/" + bankName + "_private_key.der");
-
-			Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
 		} catch (GeneralSecurityException | IOException e) {
 			logger.error("Error: ", e);
 		}
-		// Create server socket
 		logger.info(String.format("Server will receive packets on port %d %n", port));
-
-		// Wait for client packets 
+		// Wait for client packets
 		while (true) {
 			try (DatagramSocket socket = new DatagramSocket(port)) {
 				byte[] buf = new byte[BUFFER_SIZE];
@@ -654,7 +646,7 @@ public class Bank {
 				JsonObject responseJson = JsonParser.parseString("{}").getAsJsonObject();
 
 				JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
-				infoJson.addProperty("from", "BFTB");
+				infoJson.addProperty("from", bankName);
 				infoJson.addProperty("to", response[1]);
 				infoJson.addProperty("requestId", Integer.toString(bankRequestId));
 				infoJson.addProperty("body", response[0]);
@@ -668,6 +660,8 @@ public class Bank {
 					msgDig.update(infoJson.toString().getBytes());
 					String ins = Base64.getEncoder().encodeToString(decryptCipher.doFinal(msgDig.digest()));
 					responseJson.addProperty("MAC", ins);
+					//Store signature
+					writeToCSV("csv_files/signatures.csv", new String[]{bankName, response[1], ins}, true);
 				}
 
 				logger.info("Response message: " + responseJson);
@@ -684,27 +678,11 @@ public class Bank {
 		}
 	}
 
-	private static void writeToCSV(String filePath, String[] values, boolean append) {
-		try {
-			FileWriter outputFile = new FileWriter(filePath, append);
-			CSVWriter writer = new CSVWriter(outputFile, ',',
-					CSVWriter.NO_QUOTE_CHARACTER,
-					CSVWriter.DEFAULT_ESCAPE_CHARACTER,
-					CSVWriter.DEFAULT_LINE_END);
-			writer.writeNext(values);
-			writer.close();
-		}
-		catch (IOException e) {
-			logger.error("Error: ", e);
-		}
-	}
-
 	public static String[] receiveMessageAndCheckSafety(String clientText) throws GeneralSecurityException, IOException {
 		String[] response = new String[2];
 
-		PublicKey pubKey = readPublic("keys/bank_public_key.der");
 		PrivateKey privKey = readPrivate("keys/bank_private_key.der");
-		PublicKey pubClientKey = null;
+		PublicKey pubClientKey;
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 		Cipher decryptCipher = Cipher.getInstance(CIPHER_ALGO);
 		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
@@ -730,17 +708,15 @@ public class Bank {
 
 		int idReceived = Integer.parseInt(requestId);
 
-		String id = getCurrentRequestIdFrom(from);
+		int currentId = Integer.parseInt(getCurrentRequestIdFrom(from));
 
-		int ID = Integer.parseInt(id);
-
-		if (idReceived <= ID) {
+		if (idReceived <= currentId) {
 			logger.info("Message is duplicate, shall be ignored");
 			response[0] = ActionLabel.FAIL.getLabel();
-		} else if(ID == -1){
+		} else if (currentId == -1) {
 			logger.error("Client has no request ID");
 			response[0] = ActionLabel.FAIL.getLabel();
-		} else if(idReceived != Integer.MAX_VALUE){ //valid request id
+		} else if (idReceived != Integer.MAX_VALUE) { //valid request id
 			updateRequestID(from, requestId);
 		}
 
@@ -760,6 +736,9 @@ public class Bank {
 			return response;
 		}
 
+		//Store signature
+		writeToCSV("csv_files/signatures.csv", new String[]{from, bankName, mac}, true);
+
 		response[0] = setResponse(bodyArray, from);
 		response[1] = from;
 
@@ -767,5 +746,19 @@ public class Bank {
 		logger.info("response body = " + response[0]);
 
 		return response;
+	}
+
+	private static void writeToCSV(String filePath, String[] values, boolean append) {
+		try {
+			FileWriter outputFile = new FileWriter(filePath, append);
+			CSVWriter writer = new CSVWriter(outputFile, ',',
+					CSVWriter.NO_QUOTE_CHARACTER,
+					CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+					CSVWriter.DEFAULT_LINE_END);
+			writer.writeNext(values);
+			writer.close();
+		} catch (IOException e) {
+			logger.error("Error: ", e);
+		}
 	}
 }

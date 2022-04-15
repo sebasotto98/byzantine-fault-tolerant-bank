@@ -12,7 +12,6 @@ import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Hashtable;
 
 import javax.crypto.Cipher;
 
@@ -30,10 +29,10 @@ public class API {
 
 	private static int bankRequestID = Integer.MIN_VALUE;
 
-	public String[] requestIDs(PrivateKey privateKey, int clientPort, int serverPort,
-							   InetAddress serverAddress, PublicKey bankPublic, String username,
-							   int requestID, String bankName)
-								throws GeneralSecurityException, IOException {
+	public String setInitialRequestIDs(PrivateKey privateKey, int clientPort, int serverPort,
+									   InetAddress serverAddress, PublicKey bankPublic, String username,
+									   int requestID, String bankName)
+										throws GeneralSecurityException, IOException {
 		String[] response = new String[2];
 
 		response[0] = sendMessageAndReceiveBody(privateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
@@ -44,24 +43,22 @@ public class API {
 
 		bankRequestID = Integer.parseInt(response[1]);
 
-		return response;
+		return response[0];
 	}
 
 	public String openAccount(PrivateKey accountPrivateKey, int clientPort,
 							  int serverPort, InetAddress serverAddress,
 							  PublicKey bankPublic, String username, int requestID, String bankName)
-			throws GeneralSecurityException, IOException  {
+								throws GeneralSecurityException, IOException {
 
-		String body = sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
+		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
 				username, ActionLabel.OPEN_ACCOUNT.getLabel(), requestID);
-
-		return body;
 	}
 
 	public String sendAmount(PrivateKey sourcePrivateKey, int clientPort,
 							 int serverPort, InetAddress serverAddress, String bankName,
 							 PublicKey bankPublic, int requestID, String username, float amount, String usernameDest)
-			throws GeneralSecurityException, IOException {
+								throws GeneralSecurityException, IOException {
 
 		String bodyText = ActionLabel.SEND_AMOUNT.getLabel() + "," + amount + "," + usernameDest;
 
@@ -71,7 +68,7 @@ public class API {
 	public String checkAccount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
 							   InetAddress serverAddress, String bankName,
 							   PublicKey bankPublic, String username, int requestID, String owner)
-			throws GeneralSecurityException, IOException {
+								throws GeneralSecurityException, IOException {
 
 		String bodyText = ActionLabel.CHECK_ACCOUNT.getLabel() + "," + owner;
 
@@ -81,7 +78,7 @@ public class API {
 	public String receiveAmount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
 								InetAddress serverAddress, String bankName,
 								PublicKey bankPublic, String username, int requestID, int transactionId)
-			throws GeneralSecurityException, IOException  {
+								throws GeneralSecurityException, IOException {
 		String bodyText = ActionLabel.RECEIVE_AMOUNT.getLabel() + "," + transactionId;
 
 		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic, username, bodyText, requestID);
@@ -90,7 +87,7 @@ public class API {
 	public String auditAccount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
 							   InetAddress serverAddress, String bankName,
 							   PublicKey bankPublic, String username, int requestID, String owner)
-			throws GeneralSecurityException, IOException {
+								throws GeneralSecurityException, IOException {
 
 		String bodyText = ActionLabel.AUDIT_ACCOUNT.getLabel() + "," + owner;
 
@@ -98,7 +95,7 @@ public class API {
 	}
 
 	private String checkMessage(Cipher encryptCipher, String mac, MessageDigest msgDig, JsonObject infoJson,
-								String requestIdBank, String from) {
+								String requestIdBank) {
 		byte[] macBytes = null;
 		try {
 			macBytes = encryptCipher.doFinal(Base64.getDecoder().decode(mac));
@@ -127,8 +124,7 @@ public class API {
 	private String sendMessageAndReceiveBody(PrivateKey accountPrivateKey, int clientPort,
 											 int serverPort, InetAddress serverAddress, String bankName, PublicKey bankPublic, String username,
 											 String bodyText, int requestID)
-			throws GeneralSecurityException, IOException  {
-
+											throws GeneralSecurityException, IOException {
 		String DIGEST_ALGO = "SHA-256";
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 
@@ -138,7 +134,6 @@ public class API {
 		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
 		signCipher.init(Cipher.ENCRYPT_MODE, accountPrivateKey);
 
-		// Create socket
 		DatagramSocket socket = new DatagramSocket(clientPort);
 		socket.setSoTimeout(SOCKET_TIMEOUT);
 		// Create request message
@@ -174,7 +169,6 @@ public class API {
 			socket.receive(serverPacket);
 		} catch (SocketTimeoutException e) {
 			logger.info("Socket timeout. Failed request!");
-			// Close socket
 			socket.close();
 			logger.info("Socket closed");
 			return ActionLabel.FAIL.getLabel();
@@ -202,7 +196,7 @@ public class API {
 
 		mac = responseJson.get("MAC").getAsString();
 
-		String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from);
+		String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank);
 
 		socket.close();
 		logger.info("Socket closed");

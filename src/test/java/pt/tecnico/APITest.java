@@ -27,7 +27,7 @@ public class APITest {
     private PublicKey publicKey;
     private PublicKey bankPublicKey;
 
-    /*@BeforeEach
+    @BeforeEach
     public void setUp() {
         api = new API();
 
@@ -40,8 +40,6 @@ public class APITest {
         }
 
         username = "client1";
-        String password = "pwd";
-        String alias = "client1";
 
         String privateKeyPath = "keys/" + username + "_private_key.der";
         String publicKeyPath = "keys/" + username + "_public_key.der";
@@ -92,12 +90,12 @@ public class APITest {
         bankThread.start();
 
         try {
-            bankResponse = api.openAccount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, 0);
+            bankResponse = api.openAccount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, 0, "bank");
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
         }
 
-        Assertions.assertEquals(ActionLabel.SUCCESS.getLabel(), bankResponse);
+        Assertions.assertEquals(ActionLabel.ACCOUNT_CREATED.getLabel(), bankResponse);
 
     }
 
@@ -105,15 +103,15 @@ public class APITest {
     public void openAccount_accountCreated_failure() {
 
         try {
-            bankResponse = api.openAccount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, 0);
+            bankResponse = api.openAccount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, 0, "bank");
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
         }
 
         Assertions.assertEquals(ActionLabel.FAIL.getLabel(), bankResponse);
-    }*/
+    }
 
-/**TODO: Implement the following tests
+    /* TODO: Implement the following tests
 
     @Test
     public void openAccount_clientsFileCreated_success() {

@@ -6,3 +6,12 @@ username, available_amount, book_amount,
 // Transaction History csv
 
 timestamp, from, to, amount
+
+// Request IDs csv
+
+username, requestID
+
+// Signatures
+
+from, to, signature
+
