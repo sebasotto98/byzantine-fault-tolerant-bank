@@ -3,20 +3,25 @@ package pt.tecnico;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.net.UnknownHostException;
 import java.security.*;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.security.cert.CertificateException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.InputMismatchException;
+import java.util.List;
 import java.util.Scanner;
 
 public class Client {
+
+    private static final String BANK_CONFIG_FILE = "config_files/banks.txt";
+
+    private static List<String> bankNames = new ArrayList<>();
+    private static List<Integer> bankPorts = new ArrayList<>();
 
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getSimpleName());
 
@@ -106,20 +111,25 @@ public class Client {
     }
 
     public static void main(String[] args) {
-        if (args.length < 3) {
+        if (args.length < 1) {
             System.err.println("Argument(s) missing!");
             return;
         }
+        readConfig();
         final int port = Integer.parseInt(args[0]);
-        final int bankPort = Integer.parseInt(args[1]);
-        final String bankName = args[2];
+
+        //these are temporary. Client will loop through lists
+        final int bankPort = bankPorts.get(0);
+        final String bankName = bankNames.get(0);
+
+
         InetAddress bankAddress = null;
         try {
             bankAddress = InetAddress.getLocalHost();
         } catch (UnknownHostException e) {
             logger.error("Error: ", e);
         }
-        int requestID = 0;
+
         PublicKey bankPublicKey = null;
         try {
             bankPublicKey = readPublic("keys/" + bankName + "_public_key.der");
@@ -441,5 +451,25 @@ public class Client {
             logger.error("Error: ", e);
         }
         privateKey = null;
+    }
+
+    private static void readConfig(){
+        FileReader fileReader;
+        BufferedReader reader;
+        String[] infos;
+        try {
+            fileReader = new FileReader(BANK_CONFIG_FILE);
+            reader = new BufferedReader(fileReader);
+            String line;
+            while ((line = reader.readLine()) != null) {
+                infos = line.split(",");
+                bankNames.add(infos[0]);
+                bankPorts.add(Integer.parseInt(infos[1]));
+            }
+            fileReader.close();
+            reader.close();
+        } catch (IOException e) {
+            logger.info("openAccount: Error reading requestId file.");
+        }
     }
 }
