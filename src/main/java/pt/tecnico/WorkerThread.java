@@ -38,31 +38,35 @@ public class WorkerThread extends Thread{
     private final Cipher DecryptCipher;
     private final MessageDigest msgDig;
     private final PrivateKey privKey;
-    private final PublicKey pubKey;
     private final AtomicInteger bankRequestId;
-    private final AtomicInteger transactionId;
-    private final VolatileBankInfo bankInfo;
+    private final SharedBankVars bankVars;
 
     private final DatagramSocket socket;
 
+    private final Object clientsFileLock;
+    private final Object requestIdFileLock;
+    private final Object signaturesFileLock;
+
     public WorkerThread(int socketPort, DatagramPacket clientPacket, Logger logger, String name,
                         Cipher DecryptCipher, MessageDigest msgDig, PrivateKey privKey,
-                        VolatileBankInfo bankInfo, PublicKey pubKey) throws SocketException {
+                        SharedBankVars bankVars) throws SocketException {
 
-        this.bankInfo = bankInfo;
+        this.bankVars = bankVars;
 
         this.clientPacket = clientPacket;
 
         this.DecryptCipher = DecryptCipher;
         this.msgDig = msgDig;
         this.privKey = privKey;
-        this.pubKey = pubKey;
 
         this.logger = logger;
         this.NAME = name;
 
-        this.bankRequestId = this.bankInfo.getBankRequestId();
-        this.transactionId = this.bankInfo.getTransactionId();
+        this.bankRequestId = this.bankVars.getBankRequestId();
+
+        this.clientsFileLock = this.bankVars.getClientsFileLock();
+        this.requestIdFileLock = this.bankVars.getRequestIdFileLock();
+        this.signaturesFileLock = this.bankVars.getSignaturesFileLock();
 
         this.socket = new DatagramSocket(socketPort);
     }
@@ -93,7 +97,7 @@ public class WorkerThread extends Thread{
             infoJson.addProperty("requestId", Integer.toString(bankRequestId.get()));
             infoJson.addProperty("body", response[0]);
 
-            bankInfo.incrementBankRequestID();
+            bankVars.incrementBankRequestID();
 
             responseJson.add("info", infoJson);
 
@@ -102,8 +106,10 @@ public class WorkerThread extends Thread{
                 msgDig.update(infoJson.toString().getBytes());
                 String ins = Base64.getEncoder().encodeToString(DecryptCipher.doFinal(msgDig.digest()));
                 responseJson.addProperty("MAC", ins);
-                //Store signature
-                writeToCSV(SIGNATURES_CSV_FILE_PATH, new String[]{NAME, response[1], ins}, true);
+                synchronized (signaturesFileLock){
+                    //Store signature
+                    writeToCSV(SIGNATURES_CSV_FILE_PATH, new String[]{NAME, response[1], ins}, true);
+                }
             }
 
             logger.info("Response message: " + responseJson);
@@ -149,7 +155,10 @@ public class WorkerThread extends Thread{
 
         int idReceived = Integer.parseInt(requestId);
 
-        String id = getCurrentRequestIdFrom(from);
+        String id;
+        synchronized (requestIdFileLock) {
+            id = getCurrentRequestIdFrom(from);
+        }
 
         int ID = Integer.parseInt(id);
 
@@ -160,7 +169,9 @@ public class WorkerThread extends Thread{
             logger.error("Client has no request ID");
             response[0] = ActionLabel.FAIL.getLabel();
         } else if(idReceived != Integer.MAX_VALUE){ //valid request id
-            updateRequestID(from, requestId);
+            synchronized (requestIdFileLock) {
+                updateRequestID(from, requestId);
+            }
         }
 
         byte[] macBytes;
@@ -179,8 +190,10 @@ public class WorkerThread extends Thread{
             return response;
         }
 
-        //Store signature
-        writeToCSV(SIGNATURES_CSV_FILE_PATH, new String[]{from, NAME, mac}, true);
+        synchronized (signaturesFileLock) {
+            //Store signature
+            writeToCSV(SIGNATURES_CSV_FILE_PATH, new String[]{from, NAME, mac}, true);
+        }
 
         response[0] = setResponse(bodyArray, from);
         response[1] = from;
@@ -202,6 +215,8 @@ public class WorkerThread extends Thread{
             while ((line = reader.readLine()) != null) {
                 client = line.split(",");
                 if(client[0].equals(username)) {
+                    fileReader.close();
+                    reader.close();
                     return client[1];
                 }
             }
@@ -259,7 +274,9 @@ public class WorkerThread extends Thread{
         } else if(bodyArray[0].equals(ActionLabel.AUDIT_ACCOUNT.getLabel())) {
             return handleAuditAccountRequest(bodyArray[1]);
         } else if(bodyArray[0].equals(ActionLabel.REQUEST_MY_ID.getLabel())){
-            return getCurrentRequestIdFrom(username);
+            synchronized (requestIdFileLock) {
+                return getCurrentRequestIdFrom(username);
+            }
         } else if(bodyArray[0].equals(ActionLabel.REQUEST_BANK_ID.getLabel())){
             return String.valueOf(bankRequestId);
         } else {
@@ -272,28 +289,35 @@ public class WorkerThread extends Thread{
         BufferedReader reader;
         String[] client;
         try {
-            fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
-            reader = new BufferedReader(fileReader);
-            String line;
-            while ((line = reader.readLine()) != null) {
-                client = line.split(",");
-                if(client[0].equals(username)) {
-                    return ActionLabel.DUPLICATE_USERNAME.getLabel();
+            synchronized (clientsFileLock) {
+                fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
+                reader = new BufferedReader(fileReader);
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    client = line.split(",");
+                    if (client[0].equals(username)) {
+                        return ActionLabel.DUPLICATE_USERNAME.getLabel();
+                    }
                 }
+                fileReader.close();
+                reader.close();
             }
-            fileReader.close();
-            reader.close();
         } catch (IOException e) {
             logger.info("openAccount: Error reading clients file.");
             return ActionLabel.FAIL.getLabel();
         }
 
-        writeToCSV(CLIENTS_CSV_FILE_PATH, new String[]{username, Integer.toString(INITIAL_ACCOUNT_BALANCE),
-                Integer.toString(INITIAL_ACCOUNT_BALANCE)}, true);
+        synchronized (clientsFileLock) {
+            writeToCSV(CLIENTS_CSV_FILE_PATH, new String[]{username, Integer.toString(INITIAL_ACCOUNT_BALANCE),
+                    Integer.toString(INITIAL_ACCOUNT_BALANCE)}, true);
+        }
+
         createTransactionHistoryFiles(username);
 
-        writeToCSV(REQUEST_ID_CSV_FILE_PATH, new String[]{username, Integer.toString(0)}, true);
-
+        synchronized (requestIdFileLock) {
+            writeToCSV(REQUEST_ID_CSV_FILE_PATH, new String[]{username, Integer.toString(0)}, true);
+        }
         return ActionLabel.ACCOUNT_CREATED.getLabel();
     }
 
@@ -302,17 +326,20 @@ public class WorkerThread extends Thread{
         BufferedReader reader;
         String[] client = null;
         try {
-            fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
-            reader = new BufferedReader(fileReader);
-            String line;
-            while ((line = reader.readLine()) != null) {
-                client = line.split(",");
-                if(client[0].equals(owner)) {
-                    break;
+            synchronized (clientsFileLock) {
+                fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
+                reader = new BufferedReader(fileReader);
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    client = line.split(",");
+                    if (client[0].equals(owner)) {
+                        break;
+                    }
                 }
+                fileReader.close();
+                reader.close();
             }
-            fileReader.close();
-            reader.close();
         } catch (IOException e) {
             logger.info("auditAccount: Error reading clients file.");
             return ActionLabel.FAIL.getLabel();
@@ -331,17 +358,18 @@ public class WorkerThread extends Thread{
             }
             String ownerPendingTransactionsPath = "csv_files/" + owner + "_complete_transaction_history.csv";
             try {
-                fileReader = new FileReader(ownerPendingTransactionsPath);
-                reader = new BufferedReader(fileReader);
-                String line;
+                synchronized (bankVars.getClientLock(owner)) {
+                    fileReader = new FileReader(ownerPendingTransactionsPath);
+                    reader = new BufferedReader(fileReader);
+                    String line;
 
-                while ((line = reader.readLine()) != null) { //transactions separated with ";"
-                    response.append(";");
-                    response.append(line);
+                    while ((line = reader.readLine()) != null) { //transactions separated with ";"
+                        response.append(";");
+                        response.append(line);
+                    }
+                    fileReader.close();
+                    reader.close();
                 }
-                fileReader.close();
-                reader.close();
-
                 return response.toString();
             } catch (IOException e) {
                 logger.info("auditAccount: Error reading complete transactions file.");
@@ -355,17 +383,19 @@ public class WorkerThread extends Thread{
         BufferedReader reader;
         String[] client = null;
         try {
-            fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
-            reader = new BufferedReader(fileReader);
-            String line;
-            while ((line = reader.readLine()) != null) {
-                client = line.split(",");
-                if(client[0].equals(owner)) {
-                    break;
+            synchronized (clientsFileLock) {
+                fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
+                reader = new BufferedReader(fileReader);
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    client = line.split(",");
+                    if (client[0].equals(owner)) {
+                        break;
+                    }
                 }
+                fileReader.close();
+                reader.close();
             }
-            fileReader.close();
-            reader.close();
         } catch (IOException e) {
             logger.info("checkAccount: Error reading clients file.");
             return ActionLabel.FAIL.getLabel();
@@ -384,17 +414,18 @@ public class WorkerThread extends Thread{
             }
             String ownerPendingTransactionsPath = "csv_files/" + owner + "_pending_transaction_history.csv";
             try {
-                fileReader = new FileReader(ownerPendingTransactionsPath);
-                reader = new BufferedReader(fileReader);
-                String line;
+                synchronized (bankVars.getClientLock(owner)) {
+                    fileReader = new FileReader(ownerPendingTransactionsPath);
+                    reader = new BufferedReader(fileReader);
+                    String line;
 
-                while ((line = reader.readLine()) != null) { //transactions separated with ";"
-                    response.append(";");
-                    response.append(line);
+                    while ((line = reader.readLine()) != null) { //transactions separated with ";"
+                        response.append(";");
+                        response.append(line);
+                    }
+                    fileReader.close();
+                    reader.close();
                 }
-                fileReader.close();
-                reader.close();
-
                 return response.toString();
             } catch (IOException e) {
                 logger.info("checkAccount: Error reading pending transactions file.");
@@ -410,15 +441,17 @@ public class WorkerThread extends Thread{
         FileReader fileReader;
         BufferedReader reader;
         try {
-            fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
-            reader = new BufferedReader(fileReader);
-            String line;
-            while ((line = reader.readLine()) != null) {
-                client = line.split(",");
-                clients.add(client);
+            synchronized (clientsFileLock) {
+                fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
+                reader = new BufferedReader(fileReader);
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    client = line.split(",");
+                    clients.add(client);
+                }
+                fileReader.close();
+                reader.close();
             }
-            fileReader.close();
-            reader.close();
         } catch (IOException e) {
             logger.info("sendAmount: Error reading clients file.");
             return ActionLabel.FAIL.getLabel();
@@ -451,26 +484,30 @@ public class WorkerThread extends Thread{
         if(receiverFound && senderFound) {
             //this boolean is used to overwrite file. First call to write overwrites files and following call just append
             boolean flag = false;
-            for(String[] c: clients) {
-                writeToCSV(CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
-                flag = true;
+            synchronized (clientsFileLock){
+                for (String[] c : clients) {
+                    writeToCSV(CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
+                    flag = true;
+                }
             }
 
             String receiverPendingTransactionsFile = "csv_files/" + receiver + "_pending_transaction_history.csv";
             String senderPendingTransactionsFile = "csv_files/" + username + "_pending_transaction_history.csv";
 
             String[] transaction = new String[5];
-            transaction[0] = String.valueOf(transactionId);
+            transaction[0] = String.valueOf(bankVars.getTransactionId());
             transaction[1] = new Timestamp(System.currentTimeMillis()).toString();
             transaction[2] = username;
             transaction[3] = receiver;
             transaction[4] = amount;
 
-            bankInfo.incrementTransactionId();
-
-            writeToCSV(receiverPendingTransactionsFile, transaction, true);
-            writeToCSV(senderPendingTransactionsFile, transaction, true);
-
+            bankVars.incrementTransactionId();
+            synchronized (bankVars.getClientLock(receiver)){
+                synchronized (bankVars.getClientLock(username)){
+                    writeToCSV(receiverPendingTransactionsFile, transaction, true);
+                    writeToCSV(senderPendingTransactionsFile, transaction, true);
+                }
+            }
             return ActionLabel.PENDING_TRANSACTION.getLabel();
         } else {
             logger.info("sendAmount: Sender/Receiver client not found!");
@@ -486,15 +523,17 @@ public class WorkerThread extends Thread{
         FileReader fileReader;
         BufferedReader reader;
         try {
-            fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
-            reader = new BufferedReader(fileReader);
-            String line;
-            while ((line = reader.readLine()) != null) {
-                client = line.split(",");
-                clients.add(client);
+            synchronized (clientsFileLock) {
+                fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
+                reader = new BufferedReader(fileReader);
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    client = line.split(",");
+                    clients.add(client);
+                }
+                fileReader.close();
+                reader.close();
             }
-            fileReader.close();
-            reader.close();
         } catch (IOException e) {
             System.out.println("sendAmount: Error reading clients file.");
             return ActionLabel.FAIL.getLabel();
@@ -515,15 +554,17 @@ public class WorkerThread extends Thread{
         String usernamePendingTransactionsPath = "csv_files/" + username + "_pending_transaction_history.csv";
         List<String[]> pendingTransactions = new ArrayList<>();
         try {
-            fileReader = new FileReader(usernamePendingTransactionsPath);
-            reader = new BufferedReader(fileReader);
-            String line;
-            while ((line = reader.readLine()) != null) {
-                pendingTransaction = line.split(",");
-                pendingTransactions.add(pendingTransaction);
+            synchronized (bankVars.getClientLock(username)) {
+                fileReader = new FileReader(usernamePendingTransactionsPath);
+                reader = new BufferedReader(fileReader);
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    pendingTransaction = line.split(",");
+                    pendingTransactions.add(pendingTransaction);
+                }
+                fileReader.close();
+                reader.close();
             }
-            fileReader.close();
-            reader.close();
         } catch (IOException e) {
             System.out.println("sendAmount: Error reading clients file.");
             return ActionLabel.FAIL.getLabel();
@@ -570,9 +611,11 @@ public class WorkerThread extends Thread{
         if(usernameFound && transactionFound && senderFound && receiverFound) {
             //this boolean is used to overwrite file. First call to write overwrites files and following call just append
             boolean flag = false;
-            for(String[] c: clients){
-                writeToCSV(CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
-                flag = true;
+            synchronized (clientsFileLock) {
+                for (String[] c : clients) {
+                    writeToCSV(CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
+                    flag = true;
+                }
             }
 
             // updating transactions in
@@ -581,19 +624,21 @@ public class WorkerThread extends Thread{
             List<String[]> pendingTransactionsSender = new ArrayList<>();
             String[] transactionInSender = null;
             try {
-                fileReader = new FileReader(usernamePendingTransactionsSenderPath);
-                reader = new BufferedReader(fileReader);
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    pendingTransactionSender = line.split(",");
-                    if (pendingTransactionSender[0].equals(id)){
-                        transactionInSender = pendingTransactionSender;
-                    }
-                    pendingTransactionsSender.add(pendingTransactionSender);
+                synchronized (bankVars.getClientLock(sender)) {
+                    fileReader = new FileReader(usernamePendingTransactionsSenderPath);
+                    reader = new BufferedReader(fileReader);
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        pendingTransactionSender = line.split(",");
+                        if (pendingTransactionSender[0].equals(id)) {
+                            transactionInSender = pendingTransactionSender;
+                        }
+                        pendingTransactionsSender.add(pendingTransactionSender);
 
+                    }
+                    fileReader.close();
+                    reader.close();
                 }
-                fileReader.close();
-                reader.close();
             } catch (IOException e) {
                 System.out.println("sendAmount: Error reading clients file.");
                 return ActionLabel.FAIL.getLabel();
@@ -613,44 +658,48 @@ public class WorkerThread extends Thread{
             System.out.println("");
             System.out.println("");
 
-            if (pendingTransactions.size() == 0){
-                // clear all contents of file
-                try{
-                    File pendingTransactionHistoryFile = new File("csv_files/" + username + "_pending_transaction_history.csv");
-                    pendingTransactionHistoryFile.delete();
-                    pendingTransactionHistoryFile.createNewFile();
-                } catch (IOException e){
-                    System.out.println("sendAmount: Error reading clients file.");
-                    return ActionLabel.FAIL.getLabel();
-                }
-            } else{
-                flag = false;
-                for(String[] t: pendingTransactions){
-                    writeToCSV(receiverPendingTransactionsFile,t,flag); //rewrite pending transaction of receiver file
-                    flag = true;
+            synchronized (bankVars.getClientLock(username)){
+                synchronized (bankVars.getClientLock(sender)){
+                    if (pendingTransactions.size() == 0){
+                        // clear all contents of file
+                        try{
+                            File pendingTransactionHistoryFile = new File("csv_files/" + username + "_pending_transaction_history.csv");
+                            pendingTransactionHistoryFile.delete();
+                            pendingTransactionHistoryFile.createNewFile();
+                        } catch (IOException e){
+                            System.out.println("sendAmount: Error reading clients file.");
+                            return ActionLabel.FAIL.getLabel();
+                        }
+                    } else{
+                        flag = false;
+                        for(String[] t: pendingTransactions){
+                            writeToCSV(receiverPendingTransactionsFile,t,flag); //rewrite pending transaction of receiver file
+                            flag = true;
+                        }
+                    }
+
+                    if (pendingTransactionsSender.size() == 0){
+                        // clear all contents of file
+                        try{
+                            File pendingTransactionHistoryFile = new File("csv_files/" + sender + "_pending_transaction_history.csv");
+                            pendingTransactionHistoryFile.delete();
+                            pendingTransactionHistoryFile.createNewFile();
+                        } catch (IOException e){
+                            System.out.println("sendAmount: Error reading clients file.");
+                            return ActionLabel.FAIL.getLabel();
+                        }
+                    } else{
+                        flag = false;
+                        for(String[] t: pendingTransactionsSender){
+                            writeToCSV(senderPendingTransactionsFile,t,flag); //rewrite pending transaction of sender  file
+                            flag = true;
+                        }
+                    }
+
+                    writeToCSV(receiverTransactionsFile, receiverTransaction, true);
+                    writeToCSV(senderCompletedTransactionsFile, receiverTransaction, true);
                 }
             }
-
-            if (pendingTransactionsSender.size() == 0){
-                // clear all contents of file
-                try{
-                    File pendingTransactionHistoryFile = new File("csv_files/" + sender + "_pending_transaction_history.csv");
-                    pendingTransactionHistoryFile.delete();
-                    pendingTransactionHistoryFile.createNewFile();
-                } catch (IOException e){
-                    System.out.println("sendAmount: Error reading clients file.");
-                    return ActionLabel.FAIL.getLabel();
-                }
-            } else{
-                flag = false;
-                for(String[] t: pendingTransactionsSender){
-                    writeToCSV(senderPendingTransactionsFile,t,flag); //rewrite pending transaction of sender  file
-                    flag = true;
-                }
-            }
-
-            writeToCSV(receiverTransactionsFile, receiverTransaction, true);
-            writeToCSV(senderCompletedTransactionsFile, receiverTransaction, true);
 
             return ActionLabel.COMPLETED_TRANSACTION.getLabel();
         } else {
@@ -661,27 +710,29 @@ public class WorkerThread extends Thread{
     }
 
     private void createTransactionHistoryFiles(String username) {
-        File completeTransactionHistoryFile = new File("csv_files/" + username + "_complete_transaction_history.csv");
-        File pendingTransactionHistoryFile = new File("csv_files/" + username + "_pending_transaction_history.csv");
-        if(!completeTransactionHistoryFile.exists()) {
+        synchronized (bankVars.getClientLock(username)) {
+            File completeTransactionHistoryFile = new File("csv_files/" + username + "_complete_transaction_history.csv");
+            File pendingTransactionHistoryFile = new File("csv_files/" + username + "_pending_transaction_history.csv");
+            if (!completeTransactionHistoryFile.exists()) {
+                try {
+                    completeTransactionHistoryFile.createNewFile();
+                } catch (IOException e) {
+                    logger.error("Error: ", e);
+                }
+            }
+            if (!pendingTransactionHistoryFile.exists()) {
+                try {
+                    pendingTransactionHistoryFile.createNewFile();
+                } catch (IOException e) {
+                    logger.error("Error: ", e);
+                }
+            }
             try {
                 completeTransactionHistoryFile.createNewFile();
-            } catch (IOException e) {
-                logger.error("Error: ", e);
-            }
-        }
-        if(!pendingTransactionHistoryFile.exists()) {
-            try {
                 pendingTransactionHistoryFile.createNewFile();
             } catch (IOException e) {
                 logger.error("Error: ", e);
             }
-        }
-        try {
-            completeTransactionHistoryFile.createNewFile();
-            pendingTransactionHistoryFile.createNewFile();
-        } catch (IOException e) {
-            logger.error("Error: ", e);
         }
     }
 

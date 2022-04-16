@@ -13,6 +13,7 @@ import java.net.InetAddress;
 import java.security.cert.CertificateException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.InputMismatchException;
 import java.util.Scanner;
 
 public class Client {
@@ -135,8 +136,13 @@ public class Client {
             System.out.println("\n ***BFTB***");
             System.out.println("1. Open Account \n2. Log in \n3. Exit \n ");
             System.out.println("Please enter your choice: ");
-            ch = sc.nextInt();
-            sc.nextLine();//flush
+            try {
+                ch = sc.nextInt();
+                sc.nextLine();//flush
+            }  catch (InputMismatchException ex) { // force an integer
+                ch = -1;
+                sc.nextLine();//flush
+            }
             switch (ch) {
                 case 1:
                     handleOpenAccount(port, bankPort, bankAddress, bankName, bankPublicKey, sc);
@@ -177,8 +183,13 @@ public class Client {
             System.out.println("\n ***BFTB***");
             System.out.println("1. Send amount \n2. Check account \n3. Receive amount \n4. Audit account \n5. Log out ");
             System.out.println("Please enter your choice: ");
-            ch = sc.nextInt();
-            sc.nextLine();
+            try {
+                ch = sc.nextInt();
+                sc.nextLine();
+            }  catch (InputMismatchException ex) { // force an integer
+                ch = -1;
+                sc.nextLine();
+            }
             switch (ch) {
                 case 1:
                     requestID = handleSendAmount(port, bankPort, bankAddress, requestID, bankPublicKey, sc, bankName, privateKey, username);

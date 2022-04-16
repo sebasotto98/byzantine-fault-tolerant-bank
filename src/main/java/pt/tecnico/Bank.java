@@ -42,7 +42,7 @@ public class Bank {
 	private static final String CLIENTS_CSV_FILE_PATH = "csv_files/clients.csv";
 	private static final String REQUESTID_CSV_FILE_PATH = "csv_files/requestIDs.csv";
 
-	private static final VolatileBankInfo bankInfo = new VolatileBankInfo();
+	private static final SharedBankVars bankVars = new SharedBankVars();
 
 
 	private static String bankName;
@@ -145,14 +145,14 @@ public class Bank {
 				socket.receive(clientPacket);
 
 				//thread ends automatically
-				threads[currentThreadIndex] = new WorkerThread(currentThreadPort, clientPacket, logger, bankName, decryptCipher, msgDig, privKey, bankInfo, pubKey);
+				threads[currentThreadIndex] = new WorkerThread(currentThreadPort, clientPacket, logger, bankName, decryptCipher, msgDig, privKey, bankVars);
 				threads[currentThreadIndex].start();
 
 				currentThreadIndex++;
 				currentThreadIndex = currentThreadIndex % numberOfThreads;
 
 				currentThreadPort++;
-				if(currentThreadPort > initialThreadPort + numberOfThreads){
+				if(currentThreadPort >= initialThreadPort + numberOfThreads){
 					currentThreadPort = initialThreadPort;
 				}
 			} catch (IOException e) {
