@@ -26,6 +26,8 @@ import java.sql.Timestamp;
 
 public class Bank {
 
+
+
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getSimpleName());
 
 	/**
@@ -35,19 +37,21 @@ public class Bank {
 	 * protocol, is 65,507 bytes (65,535 − 8 byte UDP header − 20 byte IP header).
 	 */
 	private static final int BUFFER_SIZE = (64 * 1024 - 1) - 8 - 20;
-	private static final int INITIAL_ACCOUNT_BALANCE = 1000;
 
 	private static final String DIGEST_ALGO = "SHA-256";
 	private static final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
-	private static final String CLIENTS_CSV_FILE_PATH = "csv_files/clients.csv";
-	private static final String REQUESTID_CSV_FILE_PATH = "csv_files/requestIDs.csv";
 
 	private static final SharedBankVars bankVars = new SharedBankVars();
 
-
+	//configVars
+	private static final String BANK_CONFIG_FILE = "config_files/banks.txt";
+	private static int port;
+	private static int initialThreadPort;
+	private static int numberOfThreads;
 	private static String bankName;
-	private static int transactionId = 0;
-	private static int bankRequestId = 0;
+
+	private static List<String> bankNames = new ArrayList<>();
+	private static List<Integer> bankPorts = new ArrayList<>();
 
 	public static KeyPair read(String publicKeyPath, String privateKeyPath) throws GeneralSecurityException, IOException {
 		logger.info("Reading public key from file " + publicKeyPath + " ...");
@@ -104,15 +108,13 @@ public class Bank {
 
 	public static void main(String[] args) {
 		// Check arguments
-		if (args.length < 3) {
+		if (args.length < 1) {
 			System.err.println("Argument(s) missing!");
-			System.err.println("PORT BANK_NAME INITIAL_THREAD_PORT NUMBER_OF_THREADS");
 			return;
 		}
-		final int port = Integer.parseInt(args[0]);
-		String bankName = args[1];
-		final int initialThreadPort = Integer.parseInt(args[2]);
-		final int numberOfThreads = Integer.parseInt(args[3]);
+		bankName = args[0];
+		readConfig();
+
 		int currentThreadIndex = 0;
 		int currentThreadPort = initialThreadPort;
 		Thread[] threads = new Thread[numberOfThreads];
@@ -120,13 +122,12 @@ public class Bank {
 		MessageDigest msgDig = null;
 		Cipher decryptCipher = null;
 		PrivateKey privKey = null;
-		PublicKey pubKey = null;
+
 		try {
 			// Hash and (de)cipher algorithms initialization
 			msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 			decryptCipher = Cipher.getInstance(CIPHER_ALGO);
 
-			pubKey = readPublic("keys/" + bankName + "_public_key.der");
 			privKey = readPrivate("keys/" + bankName + "_private_key.der");
 
 			Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
@@ -158,6 +159,32 @@ public class Bank {
 			} catch (IOException e) {
 				logger.error("Error: ", e);
 			}
+		}
+	}
+
+	private static void readConfig(){
+		FileReader fileReader;
+		BufferedReader reader;
+		String[] infos;
+		try {
+			fileReader = new FileReader(BANK_CONFIG_FILE);
+			reader = new BufferedReader(fileReader);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				infos = line.split(",");
+				if(infos[0].equals(bankName)){
+					port = Integer.parseInt(infos[1]);
+					initialThreadPort = Integer.parseInt(infos[2]);
+					numberOfThreads = Integer.parseInt(infos[3]);
+				} else {
+					bankNames.add(infos[0]);
+					bankPorts.add(Integer.parseInt(infos[1]));
+				}
+			}
+			fileReader.close();
+			reader.close();
+		} catch (IOException e) {
+			logger.info("openAccount: Error reading requestId file.");
 		}
 	}
 }

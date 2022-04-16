@@ -41,7 +41,7 @@ To compile simply go to the main folder (`SEC_PROJECT`), and execute the followi
 
 ### Run bank server
 
-`mvn exec:java -Dmainclass=pt.tecnico.Bank -Dexec.args="BANK_PORT BANK_NAME INITIAL_THREAD_PORT NUMBER_OF_THREADS"`
+`mvn exec:java -Dmainclass=pt.tecnico.Bank -Dexec.args="BANK_NAME"`
 
 ### Run client server
 
