@@ -12,7 +12,6 @@ Stage 2 functions:
 	- Protect against DoS attacks
 	
 Other:
-	- Check that CSV file modification is secure
 	- Allow connection to bank from clients in different machines
 	- Refactor to be more modular???
 	- Complete API and Bank unit tests
