@@ -53,7 +53,7 @@ This will run a functional client server, with all command options to execute.
 
 To run a pre-built example, simply pass it as input. We have provided one of these examples.
 
-`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="5000 5001 BANK_NAME" < inputExample`
+`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="CLIENT_PORT" < inputExample`
 
 This file is an example of a possible usage, with all commands being executed.
 
