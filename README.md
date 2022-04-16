@@ -5,7 +5,7 @@
 Since this project will mostly be executed on the same computer, we have created a script to generate all the key pairs more easily. In production this script would not be used, since entities must not have access to each others private keys.
 To run the script simply execute:
 
-`./generateKeys.sh BANK_NAME`
+`./generateKeys.sh`
 
 # Generate key stores to safely keep keys
 
