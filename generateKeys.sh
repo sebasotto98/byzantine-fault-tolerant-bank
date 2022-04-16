@@ -5,14 +5,17 @@ openssl req -new -key keys/server.key -out keys/server.csr
 openssl x509 -req -days 365 -in keys/server.csr -signkey keys/server.key -out keys/server.crt
 echo 01 > keys/server.srl
 
-# Generating bank key
-openssl genrsa -out keys/$1\_private_key.key
-openssl rsa -in keys/$1\_private_key.key -pubout > keys/$1\_public_key.key
-openssl req -new -key keys/$1\_private_key.key -out keys/$1\.csr
-openssl x509 -req -days 365 -in keys/$1\.csr -CA keys/server.crt -CAkey keys/server.key -out keys/$1\.crt
-openssl rsa -in keys/$1\_private_key.key -text > keys/$1\_private_key.pem
-openssl pkcs8 -topk8 -inform PEM -outform DER -in keys/$1\_private_key.pem -out keys/$1\_private_key.der -nocrypt
-openssl rsa -in keys/$1\_private_key.pem -pubout -outform DER -out keys/$1\_public_key.der
+# Generating key pairs for bank instances
+for var in bftb1 bftb2 bftb3 bftb4
+do
+	openssl genrsa -out keys/$var\_private_key.key
+	openssl rsa -in keys/$var\_private_key.key -pubout > keys/$var\_public_key.key
+	openssl req -new -key keys/$var\_private_key.key -out keys/$var.csr
+	openssl x509 -req -days 365 -in keys/$var.csr -CA keys/server.crt -CAkey keys/server.key -out keys/$var.crt
+	openssl rsa -in keys/$var\_private_key.key -text > keys/$var\_private_key.pem
+	openssl pkcs8 -topk8 -inform PEM -outform DER -in keys/$var\_private_key.pem -out keys/$var\_private_key.der -nocrypt
+	openssl rsa -in keys/$var\_private_key.pem -pubout -outform DER -out keys/$var\_public_key.der
+done
 
 # Generating key pairs for all clients
 for var in client1 client2 client3 client4 client5 client6
