@@ -8,7 +8,6 @@ Stage 2 functions:
 		- dependability tests
 
 
-	- Parallelize bank to allow multiple server replicas as (1,N) Byzantine Atomic registers
 	- Protect against DoS attacks
 	
 Other:
