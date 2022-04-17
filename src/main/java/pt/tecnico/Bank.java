@@ -49,6 +49,8 @@ public class Bank {
 	private static int initialThreadPort;
 	private static int numberOfThreads;
 	private static String bankName;
+	private static int replicas;
+	private static int faults;
 
 	private static List<String> bankNames = new ArrayList<>();
 	private static List<Integer> bankPorts = new ArrayList<>();
@@ -108,11 +110,13 @@ public class Bank {
 
 	public static void main(String[] args) {
 		// Check arguments
-		if (args.length < 1) {
+		if (args.length < 3) {
 			System.err.println("Argument(s) missing!");
 			return;
 		}
 		bankName = args[0];
+		replicas = Integer.parseInt(args[1]);
+		faults = Integer.parseInt(args[2]);
 		readConfig();
 
 		int currentThreadIndex = 0;
@@ -130,7 +134,6 @@ public class Bank {
 
 			privKey = readPrivate("keys/" + bankName + "_private_key.der");
 
-			Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
 		} catch (GeneralSecurityException | IOException e) {
 			logger.error("Error: ", e);
 		}

@@ -1,7 +1,6 @@
 Stage 2 functions:
 
 	Steps (recommend in instructions):
-		- replicate server N times. Clients loop and send request to the N servers
 		- Implement Byzantine Regular Register (section 4.7 of book)
 		- Transform Byzantine Regular Register into Byzantine Atomic Register
 		- Reason on what could happen if clients are malicious and protect if needed
@@ -11,6 +10,8 @@ Stage 2 functions:
 	- Protect against DoS attacks
 	
 Other:
+    - With N replicas a transaction is approved N times because access to transactions files are not synchronized between instances, only between threads
+            -> synchronize access to files between instances (IMPORTANT)
 	- Allow connection to bank from clients in different machines
 	- Refactor to be more modular???
 	- Complete API and Bank unit tests

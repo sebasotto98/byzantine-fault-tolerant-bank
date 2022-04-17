@@ -12,6 +12,8 @@ import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
 
 import javax.crypto.Cipher;
 
@@ -29,6 +31,10 @@ public class API {
 
 	private static int bankRequestID = Integer.MIN_VALUE;
 
+	//for each bank (String -> bank name)
+	//it saves the current RequestId
+	private static HashMap<String, Integer> bankRequestIdMap = new HashMap<>();
+
 	public String setInitialRequestIDs(PrivateKey privateKey, int clientPort, int serverPort,
 									   InetAddress serverAddress, PublicKey bankPublic, String username,
 									   int requestID, String bankName)
@@ -41,7 +47,9 @@ public class API {
 		response[1] = sendMessageAndReceiveBody(privateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
 				username, ActionLabel.REQUEST_BANK_ID.getLabel(), requestID);
 
-		bankRequestID = Integer.parseInt(response[1]);
+		if(!response[1].equals(ActionLabel.FAIL.getLabel())) {
+			bankRequestID = Integer.parseInt(response[1]);
+		}
 
 		return response[0];
 	}
@@ -95,7 +103,7 @@ public class API {
 	}
 
 	private String checkMessage(Cipher encryptCipher, String mac, MessageDigest msgDig, JsonObject infoJson,
-								String requestIdBank) {
+								String requestIdBank, String bankName) {
 		byte[] macBytes = null;
 		try {
 			macBytes = encryptCipher.doFinal(Base64.getDecoder().decode(mac));
@@ -112,11 +120,17 @@ public class API {
 			result = ActionLabel.FAIL.getLabel();
 		}
 		int idReceived = Integer.parseInt(requestIdBank);
-		if (idReceived <= bankRequestID) {
-			logger.info("Message is duplicate, shall be ignored");
-			result = ActionLabel.FAIL.getLabel();
+		int currentBankRequestId;
+		if(bankRequestIdMap.get(bankName) == null) {
+			bankRequestIdMap.put(bankName, idReceived);
 		} else {
-			bankRequestID = idReceived;
+			currentBankRequestId = bankRequestIdMap.get(bankName);
+			if (idReceived <= currentBankRequestId) {
+				logger.info("Message is duplicate, shall be ignored");
+				result = ActionLabel.FAIL.getLabel();
+			} else {
+				bankRequestIdMap.replace(bankName, idReceived);
+			}
 		}
 		return result;
 	}
@@ -196,7 +210,7 @@ public class API {
 
 		mac = responseJson.get("MAC").getAsString();
 
-		String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank);
+		String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from);
 
 		socket.close();
 		logger.info("Socket closed");
