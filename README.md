@@ -41,9 +41,16 @@ To compile simply go to the main folder (`SEC_PROJECT`), and execute the followi
 
 ### Run bank server
 
+The bank configurations are defined in the "bank.txt" file. When you run a bank instance 
+you just need to pass as an argument the name of the bank and the instance will retrieve the necessary 
+configurations from that file.
+
 `mvn exec:java -Dmainclass=pt.tecnico.Bank -Dexec.args="BANK_NAME NUMBER_OF_REPLICAS NUMBER_OF_FAULTS"`
 
 ### Run client server
+
+When running a client you just need to pass the port as an argument. When initiating the 
+application retrieves the bank information from the "bank.txt" file.
 
 `mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="CLIENT_PORT"`
 

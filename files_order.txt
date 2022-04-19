@@ -15,3 +15,6 @@ username, requestID
 
 from, to, signature
 
+//bank.txt
+bank name,bank port, initial thread port, number of threads
+
