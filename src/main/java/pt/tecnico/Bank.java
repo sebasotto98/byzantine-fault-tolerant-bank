@@ -4,29 +4,18 @@ import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 
 import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.opencsv.CSVWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Timestamp;
-
 public class Bank {
-
-
 
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getSimpleName());
 
@@ -221,17 +210,5 @@ public class Bank {
 				logger.error("Error: ", e);
 			}
 		}
-		/*
-		try { //why?
-			clientsFile.createNewFile();
-			requestIdsFile.createNewFile();
-			signaturesFile.createNewFile();
-		} catch (IOException e) {
-			logger.error("Error: ", e);
-		}
-		*/
-        
     }
-
-
 }
