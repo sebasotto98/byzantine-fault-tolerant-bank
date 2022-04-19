@@ -19,11 +19,11 @@ public class SharedBankVars {
     //each element is a lock for a client transaction file
     private static final Map<String, Object> clientsLock = new ConcurrentHashMap<>();
 
-    public synchronized Object getClientLock(String client){
+    public synchronized Object getClientLock(String client) {
         return clientsLock.computeIfAbsent(client, k -> new Object());
     }
 
-    public Object getClientsFileLock(){
+    public Object getClientsFileLock() {
         return clientsFileLock;
     }
 
@@ -36,11 +36,11 @@ public class SharedBankVars {
     }
 
     //methods for the sharedVars
-    public AtomicInteger getTransactionId(){
+    public AtomicInteger getTransactionId() {
         return transactionId;
     }
 
-    public synchronized void incrementTransactionId(){
+    public synchronized void incrementTransactionId() {
         transactionId.incrementAndGet();
     }
 
@@ -48,7 +48,7 @@ public class SharedBankVars {
         return bankRequestId;
     }
 
-    public synchronized void incrementBankRequestID(){
+    public synchronized void incrementBankRequestID() {
         bankRequestId.incrementAndGet();
     }
 

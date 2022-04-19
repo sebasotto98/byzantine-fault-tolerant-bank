@@ -193,10 +193,10 @@ public class Bank {
 	}
 
 	private static void createCommonHistoryFiles() {
-		File replicaFolder = new File(bankName + "csv_files");
-		File clientsFile = new File(bankName + "csv_files/clients.csv");
-		File requestIdsFile = new File(bankName + "csv_files/requestIDs.csv");
-		File signaturesFile = new File(bankName + "csv_files/signatures.csv");
+		File replicaFolder = new File(bankName + "_csv_files");
+		File clientsFile = new File(bankName + "_csv_files/clients.csv");
+		File requestIdsFile = new File(bankName + "_csv_files/requestIDs.csv");
+		File signaturesFile = new File(bankName + "_csv_files/signatures.csv");
 		if (!replicaFolder.exists()) {
 			replicaFolder.mkdirs();
 		}

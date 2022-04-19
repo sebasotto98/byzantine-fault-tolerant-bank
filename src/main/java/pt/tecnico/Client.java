@@ -139,7 +139,7 @@ public class Client {
             try {
                 ch = sc.nextInt();
                 sc.nextLine();//flush
-            }  catch (InputMismatchException ex) { // force an integer
+            } catch (InputMismatchException ex) { // force an integer
                 ch = -1;
                 sc.nextLine();//flush
             }
@@ -154,19 +154,19 @@ public class Client {
                     if (privateKey != null) {
                         try {
                             String requestedID = "-1";
-                            for(int i = 0; i < bankPorts.size(); i++) {
+                            for (int i = 0; i < bankPorts.size(); i++) {
                                 PublicKey bankPublicKey = null;
                                 try {
                                     bankPublicKey = readPublic("keys/" + bankNames.get(i) + "_public_key.der");
                                 } catch (GeneralSecurityException | IOException e) {
                                     logger.error("Error: ", e);
                                 }
-                                if(bankPublicKey != null) {
+                                if (bankPublicKey != null) {
                                     requestedID = api.setInitialRequestIDs(privateKey, myPort, bankPorts.get(i), bankAddress,
                                             bankPublicKey, username, Integer.MAX_VALUE, bankNames.get(i));
                                 }
                             }
-                            if(!requestedID.equals("-1") && !requestedID.equals(ActionLabel.FAIL.getLabel())) {
+                            if (!requestedID.equals("-1") && !requestedID.equals(ActionLabel.FAIL.getLabel())) {
                                 showSubmenu(sc, myPort, bankAddress, privateKey, username, Integer.parseInt(requestedID) + 1);
                             } else {
                                 logger.info("RequestID invalid or Fail.");
@@ -199,7 +199,7 @@ public class Client {
             try {
                 ch = sc.nextInt();
                 sc.nextLine();
-            }  catch (InputMismatchException ex) { // force an integer
+            } catch (InputMismatchException ex) { // force an integer
                 ch = -1;
                 sc.nextLine();
             }
@@ -231,7 +231,7 @@ public class Client {
             System.out.println("Please input username of the account's owner (to fetch public key).");
             String owner = sc.nextLine();
             int numberOfTries = 0;
-            for(int h = 0; h < bankPorts.size(); h++) {
+            for (int h = 0; h < bankPorts.size(); h++) {
 
                 PublicKey bankPublicKey = null;
                 try {
@@ -296,7 +296,7 @@ public class Client {
             sc.nextLine(); //flush
 
             int numberOfTries = 0;
-            for(int i = 0; i < bankPorts.size(); i++) {
+            for (int i = 0; i < bankPorts.size(); i++) {
 
                 PublicKey bankPublicKey = null;
                 try {
@@ -339,7 +339,7 @@ public class Client {
             String owner = sc.nextLine();
 
             int numberOfTries = 0;
-            for(int h = 0; h < bankPorts.size(); h++) {
+            for (int h = 0; h < bankPorts.size(); h++) {
 
                 PublicKey bankPublicKey = null;
                 try {
@@ -408,7 +408,7 @@ public class Client {
             sc.nextLine(); //flush
 
             int numberOfTries = 0;
-            for(int i = 0; i < bankPorts.size(); i++) {
+            for (int i = 0; i < bankPorts.size(); i++) {
 
                 PublicKey bankPublicKey = null;
                 try {
@@ -462,7 +462,7 @@ public class Client {
         try {
             privateKey = readPrivate(privateKeyPath);
             int numberOfTries = 0;
-            for(int i = 0; i < bankPorts.size(); i++) {
+            for (int i = 0; i < bankPorts.size(); i++) {
 
                 PublicKey bankPublicKey = null;
                 try {
@@ -495,7 +495,7 @@ public class Client {
         privateKey = null;
     }
 
-    private static void readConfig(){
+    private static void readConfig() {
         FileReader fileReader;
         BufferedReader reader;
         String[] infos;
