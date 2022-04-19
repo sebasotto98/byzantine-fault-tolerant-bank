@@ -118,6 +118,7 @@ public class Bank {
 		replicas = Integer.parseInt(args[1]);
 		faults = Integer.parseInt(args[2]);
 		readConfig();
+		createCommonHistoryFiles();
 
 		int currentThreadIndex = 0;
 		int currentThreadPort = initialThreadPort;
@@ -190,4 +191,47 @@ public class Bank {
 			logger.info("openAccount: Error reading requestId file.");
 		}
 	}
+
+	private static void createCommonHistoryFiles() {
+		File replicaFolder = new File(bankName + "csv_files");
+		File clientsFile = new File(bankName + "csv_files/clients.csv");
+		File requestIdsFile = new File(bankName + "csv_files/requestIDs.csv");
+		File signaturesFile = new File(bankName + "csv_files/signatures.csv");
+		if (!replicaFolder.exists()) {
+			replicaFolder.mkdirs();
+		}
+		if (!clientsFile.exists()) {
+			try {
+				clientsFile.createNewFile();
+			} catch (IOException e) {
+				logger.error("Error: ", e);
+			}
+		}
+		if (!requestIdsFile.exists()) {
+			try {
+				requestIdsFile.createNewFile();
+			} catch (IOException e) {
+				logger.error("Error: ", e);
+			}
+		}
+		if (!signaturesFile.exists()) {
+			try {
+				signaturesFile.createNewFile();
+			} catch (IOException e) {
+				logger.error("Error: ", e);
+			}
+		}
+		/*
+		try { //why?
+			clientsFile.createNewFile();
+			requestIdsFile.createNewFile();
+			signaturesFile.createNewFile();
+		} catch (IOException e) {
+			logger.error("Error: ", e);
+		}
+		*/
+        
+    }
+
+
 }

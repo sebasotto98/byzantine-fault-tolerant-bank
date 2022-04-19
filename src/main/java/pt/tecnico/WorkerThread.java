@@ -108,7 +108,7 @@ public class WorkerThread extends Thread{
                 responseJson.addProperty("MAC", ins);
                 synchronized (signaturesFileLock){
                     //Store signature
-                    writeToCSV(SIGNATURES_CSV_FILE_PATH, new String[]{NAME, response[1], ins}, true);
+                    writeToCSV(this.NAME + SIGNATURES_CSV_FILE_PATH, new String[]{NAME, response[1], ins}, true);
                 }
             }
 
@@ -192,7 +192,7 @@ public class WorkerThread extends Thread{
 
         synchronized (signaturesFileLock) {
             //Store signature
-            writeToCSV(SIGNATURES_CSV_FILE_PATH, new String[]{from, NAME, mac}, true);
+            writeToCSV(this.NAME + SIGNATURES_CSV_FILE_PATH, new String[]{from, NAME, mac}, true);
         }
 
         response[0] = setResponse(bodyArray, from);
@@ -209,7 +209,7 @@ public class WorkerThread extends Thread{
         BufferedReader reader;
         String[] client;
         try {
-            fileReader = new FileReader(REQUEST_ID_CSV_FILE_PATH);
+            fileReader = new FileReader(this.NAME + REQUEST_ID_CSV_FILE_PATH);
             reader = new BufferedReader(fileReader);
             String line;
             while ((line = reader.readLine()) != null) {
@@ -235,7 +235,7 @@ public class WorkerThread extends Thread{
         String[] client;
         List<String[]> clients = new ArrayList<>();
         try {
-            fileReader = new FileReader(REQUEST_ID_CSV_FILE_PATH);
+            fileReader = new FileReader(this.NAME + REQUEST_ID_CSV_FILE_PATH);
             reader = new BufferedReader(fileReader);
             String line;
             while ((line = reader.readLine()) != null) {
@@ -256,7 +256,7 @@ public class WorkerThread extends Thread{
         }
         boolean flag = false;
         for(String[] c: clients){
-            writeToCSV(REQUEST_ID_CSV_FILE_PATH, c, flag);
+            writeToCSV(this.NAME + REQUEST_ID_CSV_FILE_PATH, c, flag);
             flag = true;
         }
     }
@@ -290,7 +290,7 @@ public class WorkerThread extends Thread{
         String[] client;
         try {
             synchronized (clientsFileLock) {
-                fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
+                fileReader = new FileReader(this.NAME + CLIENTS_CSV_FILE_PATH);
                 reader = new BufferedReader(fileReader);
 
                 String line;
@@ -309,14 +309,14 @@ public class WorkerThread extends Thread{
         }
 
         synchronized (clientsFileLock) {
-            writeToCSV(CLIENTS_CSV_FILE_PATH, new String[]{username, Integer.toString(INITIAL_ACCOUNT_BALANCE),
+            writeToCSV(this.NAME + CLIENTS_CSV_FILE_PATH, new String[]{username, Integer.toString(INITIAL_ACCOUNT_BALANCE),
                     Integer.toString(INITIAL_ACCOUNT_BALANCE)}, true);
         }
 
         createTransactionHistoryFiles(username);
 
         synchronized (requestIdFileLock) {
-            writeToCSV(REQUEST_ID_CSV_FILE_PATH, new String[]{username, Integer.toString(0)}, true);
+            writeToCSV(this.NAME + REQUEST_ID_CSV_FILE_PATH, new String[]{username, Integer.toString(0)}, true);
         }
         return ActionLabel.ACCOUNT_CREATED.getLabel();
     }
@@ -327,7 +327,7 @@ public class WorkerThread extends Thread{
         String[] client = null;
         try {
             synchronized (clientsFileLock) {
-                fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
+                fileReader = new FileReader(this.NAME + CLIENTS_CSV_FILE_PATH);
                 reader = new BufferedReader(fileReader);
 
                 String line;
@@ -356,7 +356,7 @@ public class WorkerThread extends Thread{
                     response.append(",");
                 }
             }
-            String ownerPendingTransactionsPath = "csv_files/" + owner + "_complete_transaction_history.csv";
+            String ownerPendingTransactionsPath = this.NAME + "csv_files/" + owner + "_complete_transaction_history.csv";
             try {
                 synchronized (bankVars.getClientLock(owner)) {
                     fileReader = new FileReader(ownerPendingTransactionsPath);
@@ -384,7 +384,7 @@ public class WorkerThread extends Thread{
         String[] client = null;
         try {
             synchronized (clientsFileLock) {
-                fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
+                fileReader = new FileReader(this.NAME + CLIENTS_CSV_FILE_PATH);
                 reader = new BufferedReader(fileReader);
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -412,7 +412,7 @@ public class WorkerThread extends Thread{
                     response.append(",");
                 }
             }
-            String ownerPendingTransactionsPath = "csv_files/" + owner + "_pending_transaction_history.csv";
+            String ownerPendingTransactionsPath = this.NAME + "csv_files/" + owner + "_pending_transaction_history.csv";
             try {
                 synchronized (bankVars.getClientLock(owner)) {
                     fileReader = new FileReader(ownerPendingTransactionsPath);
@@ -442,7 +442,7 @@ public class WorkerThread extends Thread{
         BufferedReader reader;
         try {
             synchronized (clientsFileLock) {
-                fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
+                fileReader = new FileReader(this.NAME + CLIENTS_CSV_FILE_PATH);
                 reader = new BufferedReader(fileReader);
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -486,13 +486,13 @@ public class WorkerThread extends Thread{
             boolean flag = false;
             synchronized (clientsFileLock){
                 for (String[] c : clients) {
-                    writeToCSV(CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
+                    writeToCSV(this.NAME + CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
                     flag = true;
                 }
             }
 
-            String receiverPendingTransactionsFile = "csv_files/" + receiver + "_pending_transaction_history.csv";
-            String senderPendingTransactionsFile = "csv_files/" + username + "_pending_transaction_history.csv";
+            String receiverPendingTransactionsFile = this.NAME + "csv_files/" + receiver + "_pending_transaction_history.csv";
+            String senderPendingTransactionsFile = this.NAME + "csv_files/" + username + "_pending_transaction_history.csv";
 
             String[] transaction = new String[5];
             transaction[0] = String.valueOf(bankVars.getTransactionId());
@@ -524,7 +524,7 @@ public class WorkerThread extends Thread{
         BufferedReader reader;
         try {
             synchronized (clientsFileLock) {
-                fileReader = new FileReader(CLIENTS_CSV_FILE_PATH);
+                fileReader = new FileReader(this.NAME + CLIENTS_CSV_FILE_PATH);
                 reader = new BufferedReader(fileReader);
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -551,7 +551,7 @@ public class WorkerThread extends Thread{
         }
 
         String[] pendingTransaction;
-        String usernamePendingTransactionsPath = "csv_files/" + username + "_pending_transaction_history.csv";
+        String usernamePendingTransactionsPath = this.NAME + "csv_files/" + username + "_pending_transaction_history.csv";
         List<String[]> pendingTransactions = new ArrayList<>();
         try {
             synchronized (bankVars.getClientLock(username)) {
@@ -613,14 +613,14 @@ public class WorkerThread extends Thread{
             boolean flag = false;
             synchronized (clientsFileLock) {
                 for (String[] c : clients) {
-                    writeToCSV(CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
+                    writeToCSV(this.NAME + CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
                     flag = true;
                 }
             }
 
             // updating transactions in
             String[] pendingTransactionSender;
-            String usernamePendingTransactionsSenderPath = "csv_files/" + sender + "_pending_transaction_history.csv";
+            String usernamePendingTransactionsSenderPath = this.NAME + "csv_files/" + sender + "_pending_transaction_history.csv";
             List<String[]> pendingTransactionsSender = new ArrayList<>();
             String[] transactionInSender = null;
             try {
@@ -647,10 +647,10 @@ public class WorkerThread extends Thread{
             pendingTransactions.remove(receiverTransaction);
             pendingTransactionsSender.remove(transactionInSender);
 
-            String receiverPendingTransactionsFile = "csv_files/" + username + "_pending_transaction_history.csv";
-            String receiverTransactionsFile = "csv_files/" + username + "_complete_transaction_history.csv";
-            String senderPendingTransactionsFile = "csv_files/" + sender + "_pending_transaction_history.csv";
-            String senderCompletedTransactionsFile = "csv_files/" + sender + "_complete_transaction_history.csv";
+            String receiverPendingTransactionsFile = this.NAME + "csv_files/" + username + "_pending_transaction_history.csv";
+            String receiverTransactionsFile = this.NAME + "csv_files/" + username + "_complete_transaction_history.csv";
+            String senderPendingTransactionsFile = this.NAME + "csv_files/" + sender + "_pending_transaction_history.csv";
+            String senderCompletedTransactionsFile = this.NAME + "csv_files/" + sender + "_complete_transaction_history.csv";
 
             System.out.println("Receiver pending " + pendingTransactions.size() + "; sender pending " + pendingTransactionsSender.size());
             System.out.println("");
@@ -663,7 +663,7 @@ public class WorkerThread extends Thread{
                     if (pendingTransactions.size() == 0){
                         // clear all contents of file
                         try{
-                            File pendingTransactionHistoryFile = new File("csv_files/" + username + "_pending_transaction_history.csv");
+                            File pendingTransactionHistoryFile = new File(this.NAME + "csv_files/" + username + "_pending_transaction_history.csv");
                             pendingTransactionHistoryFile.delete();
                             pendingTransactionHistoryFile.createNewFile();
                         } catch (IOException e){
@@ -681,7 +681,7 @@ public class WorkerThread extends Thread{
                     if (pendingTransactionsSender.size() == 0){
                         // clear all contents of file
                         try{
-                            File pendingTransactionHistoryFile = new File("csv_files/" + sender + "_pending_transaction_history.csv");
+                            File pendingTransactionHistoryFile = new File(this.NAME + "csv_files/" + sender + "_pending_transaction_history.csv");
                             pendingTransactionHistoryFile.delete();
                             pendingTransactionHistoryFile.createNewFile();
                         } catch (IOException e){
@@ -711,8 +711,8 @@ public class WorkerThread extends Thread{
 
     private void createTransactionHistoryFiles(String username) {
         synchronized (bankVars.getClientLock(username)) {
-            File completeTransactionHistoryFile = new File("csv_files/" + username + "_complete_transaction_history.csv");
-            File pendingTransactionHistoryFile = new File("csv_files/" + username + "_pending_transaction_history.csv");
+            File completeTransactionHistoryFile = new File(this.NAME + "csv_files/" + username + "_complete_transaction_history.csv");
+            File pendingTransactionHistoryFile = new File(this.NAME + "csv_files/" + username + "_pending_transaction_history.csv");
             if (!completeTransactionHistoryFile.exists()) {
                 try {
                     completeTransactionHistoryFile.createNewFile();
