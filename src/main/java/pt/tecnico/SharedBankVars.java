@@ -14,6 +14,7 @@ public class SharedBankVars {
     private static final Object clientsFileLock = new Object();
     private static final Object requestIdFileLock = new Object();
     private static final Object signaturesFileLock = new Object();
+    private static final Object transactionIdFileLock = new Object();
 
     //each element is a lock for a client transaction file
     private static final Map<String, Object> clientsLock = new ConcurrentHashMap<>();
@@ -31,6 +32,10 @@ public class SharedBankVars {
     }
 
     public Object getSignaturesFileLock() {
+        return signaturesFileLock;
+    }
+
+    public Object getTransactionIdFileLock() {
         return signaturesFileLock;
     }
 

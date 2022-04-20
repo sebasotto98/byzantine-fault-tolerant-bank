@@ -3,6 +3,7 @@ package pt.tecnico;
 import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.security.PublicKey;
+import java.time.Instant;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -28,6 +29,7 @@ public class API {
 
 	private static final int BUFFER_SIZE = 65507;
 	private static final int SOCKET_TIMEOUT = 5000;
+	private static final int ACCEPTED_INTERVAL = 5;
 
 	private static int bankRequestID = Integer.MIN_VALUE;
 
@@ -103,7 +105,7 @@ public class API {
 	}
 
 	private String checkMessage(Cipher encryptCipher, String mac, MessageDigest msgDig, JsonObject infoJson,
-								String requestIdBank, String bankName) {
+								String requestIdBank, String bankName, String token, String requestID) {
 		byte[] macBytes = null;
 		try {
 			macBytes = encryptCipher.doFinal(Base64.getDecoder().decode(mac));
@@ -132,6 +134,11 @@ public class API {
 				bankRequestIdMap.replace(bankName, idReceived);
 			}
 		}
+		if (Integer.parseInt(token) != Integer.parseInt(requestID)){
+			logger.info("Message is duplicate, shall be ignored");
+			result = ActionLabel.FAIL.getLabel();
+		}
+
 		return result;
 	}
 
@@ -200,17 +207,18 @@ public class API {
 		// Parse JSON and extract arguments
 		JsonObject responseJson = JsonParser.parseString(serverText).getAsJsonObject();
 		JsonObject infoBankJson;
-		String from, body, to, mac, requestIdBank;
+		String from, body, to, mac, requestIdBank, timestamp, token;
 
 		infoBankJson = responseJson.getAsJsonObject("info");
 		from = infoBankJson.get("from").getAsString();
 		to = infoBankJson.get("to").getAsString();
 		body = infoBankJson.get("body").getAsString();
 		requestIdBank = infoBankJson.get("requestId").getAsString();
+		token = infoBankJson.get("token").getAsString();
 
 		mac = responseJson.get("MAC").getAsString();
 
-		String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from);
+		String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from, token, Integer.toString(requestID));
 
 		socket.close();
 		logger.info("Socket closed");

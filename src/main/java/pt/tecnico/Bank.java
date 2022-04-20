@@ -14,6 +14,8 @@ import javax.crypto.Cipher;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.opencsv.CSVWriter;
+
 
 public class Bank {
 
@@ -179,6 +181,7 @@ public class Bank {
 		File clientsFile = new File(bankName + "_csv_files/clients.csv");
 		File requestIdsFile = new File(bankName + "_csv_files/requestIDs.csv");
 		File signaturesFile = new File(bankName + "_csv_files/signatures.csv");
+		File transactionIdFile = new File(bankName + "_csv_files/transactionId.csv");
 		if (!replicaFolder.exists()) {
 			replicaFolder.mkdirs();
 		}
@@ -199,6 +202,20 @@ public class Bank {
 		if (!signaturesFile.exists()) {
 			try {
 				signaturesFile.createNewFile();
+			} catch (IOException e) {
+				logger.error("Error: ", e);
+			}
+		}
+		if (!transactionIdFile.exists()) {
+			try {
+				transactionIdFile.createNewFile();
+				FileWriter outputFile = new FileWriter(bankName + "_csv_files/transactionId.csv", false);
+				CSVWriter writer = new CSVWriter(outputFile, ',',
+						CSVWriter.NO_QUOTE_CHARACTER,
+						CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+						CSVWriter.DEFAULT_LINE_END);
+				writer.writeNext(new String[]{Integer.toString(0)});
+				writer.close();
 			} catch (IOException e) {
 				logger.error("Error: ", e);
 			}

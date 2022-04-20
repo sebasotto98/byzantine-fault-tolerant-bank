@@ -30,6 +30,7 @@ public class WorkerThread extends Thread {
     private static final String CLIENTS_CSV_FILE_PATH = "_csv_files/clients.csv";
     private static final String REQUEST_ID_CSV_FILE_PATH = "_csv_files/requestIDs.csv";
     private static final String SIGNATURES_CSV_FILE_PATH = "_csv_files/signatures.csv";
+    private static final String TRANSACTION_ID_FILE_PATH = "_csv_files/transactionId.csv";
 
     private final DatagramPacket clientPacket;
 
@@ -47,6 +48,7 @@ public class WorkerThread extends Thread {
     private final Object clientsFileLock;
     private final Object requestIdFileLock;
     private final Object signaturesFileLock;
+    private final Object transactionIdFileLock;
 
     public WorkerThread(int socketPort, DatagramPacket clientPacket, Logger logger, String name,
                         Cipher DecryptCipher, MessageDigest msgDig, PrivateKey privKey,
@@ -68,6 +70,7 @@ public class WorkerThread extends Thread {
         this.clientsFileLock = this.bankVars.getClientsFileLock();
         this.requestIdFileLock = this.bankVars.getRequestIdFileLock();
         this.signaturesFileLock = this.bankVars.getSignaturesFileLock();
+        this.transactionIdFileLock = this.bankVars.getTransactionIdFileLock();
 
         this.socket = new DatagramSocket(socketPort);
     }
@@ -95,11 +98,9 @@ public class WorkerThread extends Thread {
             JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
             infoJson.addProperty("from", NAME);
             infoJson.addProperty("to", response[1]);
-            infoJson.addProperty("requestId", Integer.toString(bankRequestId.get())); // isto pode se tirar daqui em principio
+            infoJson.addProperty("requestId", Integer.toString(bankRequestId.get()));
             infoJson.addProperty("body", response[0]);
-            infoJson.addProperty("token", response[2]); // falta verificar este valor na API
-            Instant inst = Instant.now().toString();
-            infoJson.addProperty("timestamp", inst); // falta verificar este valor na API
+            infoJson.addProperty("token", response[2]);
 
             bankVars.incrementBankRequestID();
 
@@ -131,7 +132,7 @@ public class WorkerThread extends Thread {
     }
 
     public String[] receiveMessageAndCheckSafety(String clientText) throws GeneralSecurityException, IOException {
-        String[] response = new String[2];
+        String[] response = new String[3];
 
         PublicKey pubClientKey = null;
         MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
@@ -499,12 +500,19 @@ public class WorkerThread extends Thread {
             String receiverPendingTransactionsFile = this.NAME + "_csv_files/" + receiver + "_pending_transaction_history.csv";
             String senderPendingTransactionsFile = this.NAME + "_csv_files/" + username + "_pending_transaction_history.csv";
 
+            int transactionId = readTransactionIdAndIncrement();
+            if (transactionId == -1){
+                logger.info("send amunt: error reading transaction id file");
+                return ActionLabel.FAIL.getLabel();
+            }
+
             String[] transaction = new String[5];
-            transaction[0] = String.valueOf(bankVars.getTransactionId());
+            transaction[0] = String.valueOf(transactionId);
             transaction[1] = new Timestamp(System.currentTimeMillis()).toString();
             transaction[2] = username;
             transaction[3] = receiver;
             transaction[4] = amount;
+
 
             bankVars.incrementTransactionId();
             synchronized (bankVars.getClientLock(receiver)) {
@@ -767,5 +775,29 @@ public class WorkerThread extends Thread {
         PublicKey pub = keyFacPub.generatePublic(pubSpec);
 
         return pub;
+    }
+
+    private int readTransactionIdAndIncrement(){
+        //get current value
+        int transactionId;
+        FileReader fileReader;
+        BufferedReader reader;
+        try {
+            synchronized (transactionIdFileLock) {
+                fileReader = new FileReader(this.NAME + TRANSACTION_ID_FILE_PATH);
+                reader = new BufferedReader(fileReader);
+                String line = reader.readLine();
+                transactionId = Integer.parseInt(line);
+                fileReader.close();
+                reader.close();
+            }
+        } catch (IOException e) {
+            System.out.println("sendAmount: Error reading clients file.");
+            return -1;
+        }
+        int newval = transactionId + 1;
+        String[] valueStrings = new String[]{Integer.toString(newval)};
+        writeToCSV(this.NAME + TRANSACTION_ID_FILE_PATH, valueStrings, false);
+        return transactionId;
     }
 }
