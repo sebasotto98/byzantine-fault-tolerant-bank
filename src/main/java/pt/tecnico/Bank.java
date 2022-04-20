@@ -38,11 +38,6 @@ public class Bank {
 	private static int initialThreadPort;
 	private static int numberOfThreads;
 	private static String bankName;
-	private static int replicas;
-	private static int faults;
-
-	private static List<String> bankNames = new ArrayList<>();
-	private static List<Integer> bankPorts = new ArrayList<>();
 
 	public static KeyPair read(String publicKeyPath, String privateKeyPath) throws GeneralSecurityException, IOException {
 		logger.info("Reading public key from file " + publicKeyPath + " ...");
@@ -99,13 +94,12 @@ public class Bank {
 
 	public static void main(String[] args) {
 		// Check arguments
-		if (args.length < 3) {
+		if (args.length < 1) {
 			System.err.println("Argument(s) missing!");
 			return;
 		}
 		bankName = args[0];
-		replicas = Integer.parseInt(args[1]);
-		faults = Integer.parseInt(args[2]);
+
 		readConfig();
 		createCommonHistoryFiles();
 
@@ -165,13 +159,12 @@ public class Bank {
 			String line;
 			while ((line = reader.readLine()) != null) {
 				infos = line.split(",");
+				//bank only needs this bank information
 				if(infos[0].equals(bankName)){
 					port = Integer.parseInt(infos[1]);
 					initialThreadPort = Integer.parseInt(infos[2]);
 					numberOfThreads = Integer.parseInt(infos[3]);
-				} else {
-					bankNames.add(infos[0]);
-					bankPorts.add(Integer.parseInt(infos[1]));
+					break;
 				}
 			}
 			fileReader.close();

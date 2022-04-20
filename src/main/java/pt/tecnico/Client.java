@@ -27,6 +27,9 @@ public class Client {
 
     private static final int MAX_RETRIES = 5;
 
+    private static int replicas;
+    private static int faults;
+
     private static final API api = new API();
 
     public static PublicKey readPublic(String publicKeyPath) throws GeneralSecurityException, IOException {
@@ -111,13 +114,15 @@ public class Client {
     }
 
     public static void main(String[] args) {
-        if (args.length < 1) {
+        if (args.length < 3) {
             System.err.println("Argument(s) missing!");
             return;
         }
         readConfig();
 
         final int myPort = Integer.parseInt(args[0]);
+        replicas = Integer.parseInt(args[1]);
+        faults = Integer.parseInt(args[2]);
 
         InetAddress bankAddress = null;
         try {

@@ -45,14 +45,15 @@ The bank configurations are defined in the "bank.txt" file. When you run a bank 
 you just need to pass as an argument the name of the bank and the instance will retrieve the necessary 
 configurations from that file.
 
-`mvn exec:java -Dmainclass=pt.tecnico.Bank -Dexec.args="BANK_NAME NUMBER_OF_REPLICAS NUMBER_OF_FAULTS"`
+`mvn exec:java -Dmainclass=pt.tecnico.Bank -Dexec.args="BANK_NAME"`
 
 ### Run client server
 
-When running a client you just need to pass the port as an argument. When initiating the 
-application retrieves the bank information from the "bank.txt" file.
+When running a client you need to pass the port as an argument. When initiating the 
+application retrieves the bank information from the "bank.txt" file. You also need to pass the number of replicas
+and how many byzantine faults the system tolerates. 
 
-`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="CLIENT_PORT"`
+`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="CLIENT_PORT NUMBER_OF_REPLICAS NUMBER_OF_FAULTS"`
 
 This will run a functional client server, with all command options to execute.
 
