@@ -14,6 +14,7 @@ import java.net.SocketException;
 import java.security.*;
 import java.security.spec.X509EncodedKeySpec;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -94,8 +95,11 @@ public class WorkerThread extends Thread{
             JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
             infoJson.addProperty("from", NAME);
             infoJson.addProperty("to", response[1]);
-            infoJson.addProperty("requestId", Integer.toString(bankRequestId.get()));
+            infoJson.addProperty("requestId", Integer.toString(bankRequestId.get())); // isto pode se tirar daqui em principio
             infoJson.addProperty("body", response[0]);
+            infoJson.addProperty("token", response[2]); // falta verificar este valor na API
+            Instant inst = Instant.now().toString();
+            infoJson.addProperty("timestamp", inst); // falta verificar este valor na API
 
             bankVars.incrementBankRequestID();
 
@@ -197,6 +201,7 @@ public class WorkerThread extends Thread{
 
         response[0] = setResponse(bodyArray, from);
         response[1] = from;
+        response[2] = requestId;
 
         logger.info(String.format("Message to '%s', from '%s':%n%s%n", to, from, body));
         logger.info("response body = " + response[0]);
