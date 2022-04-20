@@ -229,4 +229,119 @@ public class API {
 			return body;
 		}
 	}
+
+
+	// trying 
+	private String sendMessageAndReceiveBody(PrivateKey accountPrivateKey, int clientPort,
+											 int serverPort, InetAddress serverAddress, String bankName, PublicKey bankPublic, String username,
+											 String bodyText, int requestID, List<String> bankNames, List<String> bankPorts, String type, int faults )
+			throws GeneralSecurityException, IOException {
+		String DIGEST_ALGO = "SHA-256";
+		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
+
+		String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
+		Cipher encryptCipher = Cipher.getInstance(CIPHER_ALGO);
+
+		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
+		signCipher.init(Cipher.ENCRYPT_MODE, accountPrivateKey);
+
+		
+		
+		// send request for all replicas
+		for (int i = 0; i < bankPorts.size(); i++){
+			DatagramSocket socket = new DatagramSocket(clientPort);
+			socket.setSoTimeout(SOCKET_TIMEOUT);
+
+			// Create request message
+			JsonObject requestJson = JsonParser.parseString("{}").getAsJsonObject();
+			JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
+			infoJson.addProperty("to", bankNames.get(i));
+			infoJson.addProperty("from", username);
+			infoJson.addProperty("body", bodyText);
+			infoJson.addProperty("requestId", Integer.toString(requestID));
+
+			requestJson.add("info", infoJson);
+
+			msgDig.update(infoJson.toString().getBytes());
+			String macString = Base64.getEncoder().encodeToString(signCipher.doFinal(msgDig.digest()));
+			requestJson.addProperty("MAC", macString);
+
+			logger.info("Request message: " + requestJson);
+
+			// Send request
+			byte[] clientData = requestJson.toString().getBytes();
+			logger.info(String.format("%d bytes %n", clientData.length));
+			DatagramPacket clientPacket = new DatagramPacket(clientData, clientData.length, serverAddress, serverPort);
+			socket.send(clientPacket);
+			logger.info(String.format("Request packet sent to %s:%d!%n", serverAddress, serverPort));
+
+			socket.close();
+
+		}
+
+		int ackNumber = 0;
+		// receive request based on type of operation
+		while ( ( ackNumber < (bankPorts.size() + faults)/2 && !type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) ) ||
+				( ackNumber < bankPorts.size())             && type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) ){
+			DatagramSocket socket = new DatagramSocket(clientPort);
+			socket.setSoTimeout(SOCKET_TIMEOUT);
+
+			// Receive response
+			byte[] serverData = new byte[BUFFER_SIZE];
+			DatagramPacket serverPacket = new DatagramPacket(serverData, serverData.length);
+			logger.info("Wait for response packet...");
+
+			try {
+				socket.receive(serverPacket);
+			} catch (SocketTimeoutException e) {
+				logger.info("Socket timeout. Failed request!");
+				socket.close();
+				logger.info("Socket closed");
+				return ActionLabel.FAIL.getLabel();
+			}
+
+			logger.info(String.format("Received packet from %s:%d!%n", serverPacket.getAddress(), serverPacket.getPort()));
+			logger.info(String.format("%d bytes %n", serverPacket.getLength()));
+
+			encryptCipher.init(Cipher.DECRYPT_MODE, bankPublic);
+
+			// Convert response to string
+			String serverText = new String(serverPacket.getData(), 0, serverPacket.getLength());
+			logger.info("Received response: " + serverText);
+
+			// Parse JSON and extract arguments
+			JsonObject responseJson = JsonParser.parseString(serverText).getAsJsonObject();
+			JsonObject infoBankJson;
+			String from, body, to, mac, requestIdBank, timestamp, token;
+
+			infoBankJson = responseJson.getAsJsonObject("info");
+			from = infoBankJson.get("from").getAsString();
+			to = infoBankJson.get("to").getAsString();
+			body = infoBankJson.get("body").getAsString();
+			requestIdBank = infoBankJson.get("requestId").getAsString();
+			token = infoBankJson.get("token").getAsString();
+
+			mac = responseJson.get("MAC").getAsString();
+
+			String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from, token, Integer.toString(requestID));
+
+			if (!messageCheck.equals(ActionLabel.FAIL.getLabel())){
+				ackNumber++;
+			}
+
+			socket.close();
+			logger.info("Socket closed");
+
+		}
+
+
+
+		
+
+		if (messageCheck.equals(ActionLabel.FAIL.getLabel())) {
+			return messageCheck;
+		} else {
+			return body;
+		}
+	}
 }

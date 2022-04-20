@@ -27,8 +27,14 @@ public enum ActionLabel {
     FAIL("Fail"),
     SUCCESS("Success"),
 
+    // Api Label for algortithm
+    READ("Read"),
+    WRITE("Write"),
+
     //other labels
     UNKNOWN_FUNCTION("UNKNOWN_FUNCTION");
+
+    
 
     private final String label;
 
