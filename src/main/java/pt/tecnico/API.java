@@ -17,9 +17,12 @@ import java.util.HashMap;
 import java.util.List;
 
 import javax.crypto.Cipher;
+import javax.swing.Action;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -245,6 +248,8 @@ public class API {
 		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
 		signCipher.init(Cipher.ENCRYPT_MODE, accountPrivateKey);
 
+		String messageCheck;
+
 		
 		
 		// send request for all replicas
@@ -280,9 +285,18 @@ public class API {
 		}
 
 		int ackNumber = 0;
+		int numberOfTries = 0;
+		List<String> responseList = new List<String>();
+		List<Integer> idList = new List<Integer>();
+		boolean writeFinished = false;
+		String writeFinalAnswer;
+		boolean readFinished = false;
+		List<Pair<String, String>> listPair = new List<Pair<String, String>>();
 		// receive request based on type of operation
-		while ( ( ackNumber < (bankPorts.size() + faults)/2 && !type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) ) ||
-				( ackNumber < bankPorts.size())             && type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) ){
+		while ( ( !writeFinished && type.equals(ActionLabel.WRITE.getLabel()) ) || ( !readFinished && type.equals(ActionLabel.WRITE.getLabel()) ) &&
+				( ackNumber < bankPorts.size()             && type.equals(ActionLabel.OPEN_ACCOUNT.getLabel())  )  ||
+				numberOfTries < bankPorts.size()){
+
 			DatagramSocket socket = new DatagramSocket(clientPort);
 			socket.setSoTimeout(SOCKET_TIMEOUT);
 
@@ -323,25 +337,41 @@ public class API {
 
 			mac = responseJson.get("MAC").getAsString();
 
-			String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from, token, Integer.toString(requestID));
-
+			messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from, token, Integer.toString(requestID));
 			if (!messageCheck.equals(ActionLabel.FAIL.getLabel())){
-				ackNumber++;
-			}
+				responseList.add(messageCheck);
 
+				if (type.equals(ActionLabel.WRITE.getLabel())){
+					int occurrences = Collections.frequency(responseList, messageCheck);
+					if (occurrences >= (bankPorts.size()+faults)/2){ // é preciso verificar se sao iguais
+						writeFinished = true;
+						writeFinalAnswer = messageCheck;
+					}
+					
+				} else if (type.equals(ActionLabel.READ.getLabel())){
+					ackNumber++;
+					// add Pair (body, requestId) to dictionary
+					if (ackNumber >= (bankPorts.size()+faults)/2){
+						readFinished = true;
+					}
+				}
+			}
+			
 			socket.close();
 			logger.info("Socket closed");
+			numberOfTries++;
 
 		}
 
-
-
-		
-
-		if (messageCheck.equals(ActionLabel.FAIL.getLabel())) {
-			return messageCheck;
+		if (type.equals(ActionLabel.WRITE.getLabel()) && writeFinished){
+			return writeFinalAnswer;
+		} else if (type.equals(ActionLabel.READ.getLabel()) && readFinished){
+			return ActionLabel.TODO.getLabel();									// TODO escolher a resposta com o requestID mais alto
+		} else if (type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) && responseList.size() == numberOfTries){
+			return ActionLabel.ACCOUNT_CREATED.getLabel();
 		} else {
-			return body;
+			return ActionLabel.FAIL.getLabel();
 		}
+
 	}
 }
