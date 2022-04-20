@@ -38,7 +38,7 @@ public class API {
 	public String setInitialRequestIDs(PrivateKey privateKey, int clientPort, int serverPort,
 									   InetAddress serverAddress, PublicKey bankPublic, String username,
 									   int requestID, String bankName)
-										throws GeneralSecurityException, IOException {
+			throws GeneralSecurityException, IOException {
 		String[] response = new String[2];
 
 		response[0] = sendMessageAndReceiveBody(privateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
@@ -47,7 +47,7 @@ public class API {
 		response[1] = sendMessageAndReceiveBody(privateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
 				username, ActionLabel.REQUEST_BANK_ID.getLabel(), requestID);
 
-		if(!response[1].equals(ActionLabel.FAIL.getLabel())) {
+		if (!response[1].equals(ActionLabel.FAIL.getLabel())) {
 			bankRequestID = Integer.parseInt(response[1]);
 		}
 
@@ -57,7 +57,7 @@ public class API {
 	public String openAccount(PrivateKey accountPrivateKey, int clientPort,
 							  int serverPort, InetAddress serverAddress,
 							  PublicKey bankPublic, String username, int requestID, String bankName)
-								throws GeneralSecurityException, IOException {
+			throws GeneralSecurityException, IOException {
 
 		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
 				username, ActionLabel.OPEN_ACCOUNT.getLabel(), requestID);
@@ -66,7 +66,7 @@ public class API {
 	public String sendAmount(PrivateKey sourcePrivateKey, int clientPort,
 							 int serverPort, InetAddress serverAddress, String bankName,
 							 PublicKey bankPublic, int requestID, String username, float amount, String usernameDest)
-								throws GeneralSecurityException, IOException {
+			throws GeneralSecurityException, IOException {
 
 		String bodyText = ActionLabel.SEND_AMOUNT.getLabel() + "," + amount + "," + usernameDest;
 
@@ -76,7 +76,7 @@ public class API {
 	public String checkAccount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
 							   InetAddress serverAddress, String bankName,
 							   PublicKey bankPublic, String username, int requestID, String owner)
-								throws GeneralSecurityException, IOException {
+			throws GeneralSecurityException, IOException {
 
 		String bodyText = ActionLabel.CHECK_ACCOUNT.getLabel() + "," + owner;
 
@@ -86,7 +86,7 @@ public class API {
 	public String receiveAmount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
 								InetAddress serverAddress, String bankName,
 								PublicKey bankPublic, String username, int requestID, int transactionId)
-								throws GeneralSecurityException, IOException {
+			throws GeneralSecurityException, IOException {
 		String bodyText = ActionLabel.RECEIVE_AMOUNT.getLabel() + "," + transactionId;
 
 		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic, username, bodyText, requestID);
@@ -95,7 +95,7 @@ public class API {
 	public String auditAccount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
 							   InetAddress serverAddress, String bankName,
 							   PublicKey bankPublic, String username, int requestID, String owner)
-								throws GeneralSecurityException, IOException {
+			throws GeneralSecurityException, IOException {
 
 		String bodyText = ActionLabel.AUDIT_ACCOUNT.getLabel() + "," + owner;
 
@@ -121,7 +121,7 @@ public class API {
 		}
 		int idReceived = Integer.parseInt(requestIdBank);
 		int currentBankRequestId;
-		if(bankRequestIdMap.get(bankName) == null) {
+		if (bankRequestIdMap.get(bankName) == null) {
 			bankRequestIdMap.put(bankName, idReceived);
 		} else {
 			currentBankRequestId = bankRequestIdMap.get(bankName);
@@ -138,7 +138,7 @@ public class API {
 	private String sendMessageAndReceiveBody(PrivateKey accountPrivateKey, int clientPort,
 											 int serverPort, InetAddress serverAddress, String bankName, PublicKey bankPublic, String username,
 											 String bodyText, int requestID)
-											throws GeneralSecurityException, IOException {
+			throws GeneralSecurityException, IOException {
 		String DIGEST_ALGO = "SHA-256";
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 

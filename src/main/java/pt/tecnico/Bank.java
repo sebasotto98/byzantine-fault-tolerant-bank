@@ -4,29 +4,18 @@ import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 
 import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.opencsv.CSVWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Timestamp;
-
 public class Bank {
-
-
 
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getSimpleName());
 
@@ -49,11 +38,6 @@ public class Bank {
 	private static int initialThreadPort;
 	private static int numberOfThreads;
 	private static String bankName;
-	private static int replicas;
-	private static int faults;
-
-	private static List<String> bankNames = new ArrayList<>();
-	private static List<Integer> bankPorts = new ArrayList<>();
 
 	public static KeyPair read(String publicKeyPath, String privateKeyPath) throws GeneralSecurityException, IOException {
 		logger.info("Reading public key from file " + publicKeyPath + " ...");
@@ -110,13 +94,12 @@ public class Bank {
 
 	public static void main(String[] args) {
 		// Check arguments
-		if (args.length < 3) {
+		if (args.length < 1) {
 			System.err.println("Argument(s) missing!");
 			return;
 		}
 		bankName = args[0];
-		replicas = Integer.parseInt(args[1]);
-		faults = Integer.parseInt(args[2]);
+
 		readConfig();
 		createCommonHistoryFiles();
 
@@ -176,13 +159,12 @@ public class Bank {
 			String line;
 			while ((line = reader.readLine()) != null) {
 				infos = line.split(",");
+				//bank only needs this bank information
 				if(infos[0].equals(bankName)){
 					port = Integer.parseInt(infos[1]);
 					initialThreadPort = Integer.parseInt(infos[2]);
 					numberOfThreads = Integer.parseInt(infos[3]);
-				} else {
-					bankNames.add(infos[0]);
-					bankPorts.add(Integer.parseInt(infos[1]));
+					break;
 				}
 			}
 			fileReader.close();
@@ -193,10 +175,10 @@ public class Bank {
 	}
 
 	private static void createCommonHistoryFiles() {
-		File replicaFolder = new File(bankName + "csv_files");
-		File clientsFile = new File(bankName + "csv_files/clients.csv");
-		File requestIdsFile = new File(bankName + "csv_files/requestIDs.csv");
-		File signaturesFile = new File(bankName + "csv_files/signatures.csv");
+		File replicaFolder = new File(bankName + "_csv_files");
+		File clientsFile = new File(bankName + "_csv_files/clients.csv");
+		File requestIdsFile = new File(bankName + "_csv_files/requestIDs.csv");
+		File signaturesFile = new File(bankName + "_csv_files/signatures.csv");
 		if (!replicaFolder.exists()) {
 			replicaFolder.mkdirs();
 		}
@@ -221,17 +203,5 @@ public class Bank {
 				logger.error("Error: ", e);
 			}
 		}
-		/*
-		try { //why?
-			clientsFile.createNewFile();
-			requestIdsFile.createNewFile();
-			signaturesFile.createNewFile();
-		} catch (IOException e) {
-			logger.error("Error: ", e);
-		}
-		*/
-        
     }
-
-
 }
