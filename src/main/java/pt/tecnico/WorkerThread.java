@@ -5,12 +5,12 @@ import com.google.gson.JsonParser;
 import com.opencsv.CSVWriter;
 import org.slf4j.Logger;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import java.io.*;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
+import java.net.*;
 import java.security.*;
 import java.security.spec.X509EncodedKeySpec;
 import java.sql.Timestamp;
@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class WorkerThread extends Thread {
 
     private static final int INITIAL_ACCOUNT_BALANCE = 1000;
+    private static final int BUFFER_SIZE = (64 * 1024 - 1) - 8 - 20;
+    private static final int SOCKET_TIMEOUT = 5000;
 
     private static final String DIGEST_ALGO = "SHA-256";
     private static final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
@@ -31,6 +33,8 @@ public class WorkerThread extends Thread {
     private static final String REQUEST_ID_CSV_FILE_PATH = "_csv_files/requestIDs.csv";
     private static final String SIGNATURES_CSV_FILE_PATH = "_csv_files/signatures.csv";
     private static final String TRANSACTION_ID_FILE_PATH = "_csv_files/transactionId.csv";
+    private static final String COMPLETED_TRANSACTION_SIGN_FILE_PATH = "_csv_files/completedSignedTransactions.csv";
+    private static final String PENDING_TRANSACTION_SIGN_FILE_PATH = "_csv_files/pendingSignedTransactions.csv";
 
     private final DatagramPacket clientPacket;
 
@@ -49,6 +53,9 @@ public class WorkerThread extends Thread {
     private final Object requestIdFileLock;
     private final Object signaturesFileLock;
     private final Object transactionIdFileLock;
+
+    private InetAddress clientAddress;
+    private int clientPort;
 
     public WorkerThread(int socketPort, DatagramPacket clientPacket, Logger logger, String name,
                         Cipher DecryptCipher, MessageDigest msgDig, PrivateKey privKey,
@@ -79,8 +86,8 @@ public class WorkerThread extends Thread {
     public void run() {
         try {
             System.out.println("I AM THREAD " + Thread.currentThread().getId());
-            InetAddress clientAddress = clientPacket.getAddress();
-            int clientPort = clientPacket.getPort();
+            clientAddress = clientPacket.getAddress();
+            clientPort = clientPacket.getPort();
             int clientLength = clientPacket.getLength();
             byte[] clientData = clientPacket.getData();
             logger.info(String.format("Received request packet from %s:%d!%n", clientAddress, clientPort));
@@ -267,7 +274,8 @@ public class WorkerThread extends Thread {
         }
     }
 
-    private String setResponse(String[] bodyArray, String username) {
+    private String setResponse(String[] bodyArray, String username)
+            throws IOException, GeneralSecurityException {
         //bodyArray -> 1-amount, 2-receiver
         if (bodyArray[0].equals(ActionLabel.OPEN_ACCOUNT.getLabel())) {
             return handleOpenAccount(username);
@@ -440,7 +448,7 @@ public class WorkerThread extends Thread {
         }
     }
 
-    private String handleSendAmountRequest(String username, String amount, String receiver) {
+    private String handleSendAmountRequest(String username, String amount, String receiver) throws GeneralSecurityException, IOException {
         //get account information
         String[] client;
         List<String[]> clients = new ArrayList<>();
@@ -513,6 +521,21 @@ public class WorkerThread extends Thread {
             transaction[3] = receiver;
             transaction[4] = amount;
 
+            //send toSign request
+            String toSign = transaction[0] + "," +
+                    receiver + "," +
+                    username + "," +
+                    amount + ",pending";
+
+            requestSign(toSign, username);
+
+            String r = receiveAndCheckRequestSign();
+
+            if(r.equals(ActionLabel.FAIL.getLabel())){
+                return r;
+            }
+
+            writeToCSV(NAME + PENDING_TRANSACTION_SIGN_FILE_PATH, toSign.split(","),true);
 
             bankVars.incrementTransactionId();
             synchronized (bankVars.getClientLock(receiver)) {
@@ -799,5 +822,139 @@ public class WorkerThread extends Thread {
         String[] valueStrings = new String[]{Integer.toString(newval)};
         writeToCSV(this.NAME + TRANSACTION_ID_FILE_PATH, valueStrings, false);
         return transactionId;
+    }
+
+    private void requestSign(String toSign, String username)
+            throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, IOException {
+
+        JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
+        infoJson.addProperty("from", NAME);
+        infoJson.addProperty("to", username);
+        infoJson.addProperty("toSign", toSign);
+        infoJson.addProperty("body", ActionLabel.SIGN.getLabel());
+        infoJson.addProperty("requestId",Integer.toString(bankRequestId.get()));
+
+        JsonObject responseJson = JsonParser.parseString("{}").getAsJsonObject();
+        responseJson.add("info", infoJson);
+
+        if (DecryptCipher != null && msgDig != null) {
+            DecryptCipher.init(Cipher.ENCRYPT_MODE, privKey);
+            msgDig.update(infoJson.toString().getBytes());
+            String ins = Base64.getEncoder().encodeToString(DecryptCipher.doFinal(msgDig.digest()));
+            responseJson.addProperty("MAC", ins);
+        }
+
+        logger.info("toSign Request: " + responseJson);
+
+        // Send
+        byte[] serverData = responseJson.toString().getBytes();
+        logger.info(String.format("%d bytes %n", serverData.length));
+        DatagramPacket serverPacket = new DatagramPacket(serverData, serverData.length, clientAddress, clientPort);
+        socket.send(serverPacket);
+    }
+
+    private String receiveAndCheckRequestSign()
+            throws IOException, GeneralSecurityException {
+
+        byte[] buf = new byte[BUFFER_SIZE];
+        DatagramPacket Packet = new DatagramPacket(buf, buf.length);
+        socket.setSoTimeout(SOCKET_TIMEOUT);
+
+        try {
+            socket.receive(Packet);
+        } catch (SocketTimeoutException e) {
+            logger.info("Socket timeout. Failed SignRequest!");
+            logger.info("Socket closed");
+            return ActionLabel.FAIL.getLabel();
+        }
+
+        logger.info("toSign Response: " + Packet);
+
+        // Convert request to string
+        String signInText = new String(Packet.getData(), 0, Packet.getLength());
+
+        PublicKey pubClientKey = null;
+        MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
+        Cipher decryptCipher = Cipher.getInstance(CIPHER_ALGO);
+        Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
+
+
+        // Parse JSON and extract arguments
+        JsonObject requestJson = JsonParser.parseString(signInText).getAsJsonObject();
+        String from, body, to, mac, requestId;
+
+        JsonObject infoClientJson = requestJson.getAsJsonObject("info");
+        to = infoClientJson.get("to").getAsString();
+        from = infoClientJson.get("from").getAsString();
+        body = infoClientJson.get("body").getAsString();
+        requestId = infoClientJson.get("requestId").getAsString();
+        mac = requestJson.get("MAC").getAsString();
+
+        String publicClientPath = "keys/" + from + "_public_key.der";
+        pubClientKey = readPublic(publicClientPath);
+        decryptCipher.init(Cipher.DECRYPT_MODE, privKey);
+        signCipher.init(Cipher.DECRYPT_MODE, pubClientKey);
+
+        int idReceived = Integer.parseInt(requestId);
+
+        String id;
+        synchronized (requestIdFileLock) {
+            id = getCurrentRequestIdFrom(from);
+        }
+
+        int ID = Integer.parseInt(id);
+
+        if (idReceived <= ID) {
+            logger.info("Message is duplicate, shall be ignored");
+            return ActionLabel.FAIL.getLabel();
+        } else if (ID == -1) {
+            logger.error("Client has no request ID");
+            return ActionLabel.FAIL.getLabel();
+        } else if (idReceived != Integer.MAX_VALUE) { //valid request id
+            synchronized (requestIdFileLock) {
+                updateRequestID(from, requestId);
+            }
+        }
+
+        byte[] macBytes;
+        try {
+            macBytes = signCipher.doFinal(Base64.getDecoder().decode(mac));
+        } catch (Exception e) {
+            logger.error("Error: ", e);
+            logger.info("Entity not authenticated!");
+            return ActionLabel.FAIL.getLabel();
+        }
+        msgDig.update(infoClientJson.toString().getBytes());
+        if (Arrays.equals(macBytes, msgDig.digest())) {
+            logger.info("Confirmed content integrity.");
+        } else {
+            logger.info(String.format("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes)));
+            return ActionLabel.FAIL.getLabel();
+        }
+
+        int lastIndex = body.lastIndexOf(';');
+        String sign = body.substring(lastIndex+1);
+        byte[] signBytes = sign.getBytes();
+        String request = body.substring(0,lastIndex);
+
+        byte[] requestBytes;
+        try {
+            requestBytes = signCipher.doFinal(Base64.getDecoder().decode(request));
+        } catch (Exception e) {
+            logger.error("Error: ", e);
+            logger.info("Entity not authenticated!");
+            return ActionLabel.FAIL.getLabel();
+        }
+        msgDig.update(signBytes);
+        if (Arrays.equals(requestBytes, msgDig.digest())) {
+            logger.info("Confirmed content integrity.");
+        } else {
+            logger.info(String.format("Recv: %s%nCalc: %s%n", Arrays.toString(msgDig.digest()), Arrays.toString(macBytes)));
+            return ActionLabel.FAIL.getLabel();
+        }
+
+        writeToCSV(this.NAME + PENDING_TRANSACTION_SIGN_FILE_PATH,body.split(","),true);
+
+        return ActionLabel.SUCCESS.getLabel();
     }
 }

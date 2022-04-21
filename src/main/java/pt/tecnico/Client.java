@@ -30,7 +30,7 @@ public class Client {
     private static int replicas;
     private static int faults;
 
-    private static final API api = new API();
+    private static API api;
 
     public static PublicKey readPublic(String publicKeyPath) throws GeneralSecurityException, IOException {
         logger.info("Reading public key from file " + publicKeyPath + " ...");
@@ -123,6 +123,8 @@ public class Client {
         final int myPort = Integer.parseInt(args[0]);
         replicas = Integer.parseInt(args[1]);
         faults = Integer.parseInt(args[2]);
+
+        api = new API(bankNames, bankPorts, faults);
 
         InetAddress bankAddress = null;
         try {

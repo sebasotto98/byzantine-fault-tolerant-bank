@@ -8,6 +8,7 @@
         <outputRelativeToContentRoot value="true" />
         <module name="secure-messages" />
         <module name="SEC_project" />
+        <module name="SEC_project-algorithmTries" />
       </profile>
     </annotationProcessing>
   </component>

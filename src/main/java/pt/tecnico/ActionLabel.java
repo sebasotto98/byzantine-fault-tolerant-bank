@@ -9,6 +9,7 @@ public enum ActionLabel {
     AUDIT_ACCOUNT("AuditAccount"),
     REQUEST_MY_ID("RequestMyId"),
     REQUEST_BANK_ID("RequestBankId"),
+    SIGN("Sign"),
 
     //TODO label
     TODO("TODO"),
@@ -22,6 +23,7 @@ public enum ActionLabel {
     CLIENT_NOT_FOUND("ClientNotFound"),
     CLIENT_NOT_RECEIVER("ClientNotReceiver"),
     COMPLETED_TRANSACTION("CompletedTransaction"),
+    SIGNED("Signed"),
 
     //generic labels
     FAIL("Fail"),

@@ -2,19 +2,14 @@ package pt.tecnico;
 
 import java.io.*;
 import java.lang.invoke.MethodHandles;
-import java.security.PublicKey;
+import java.security.*;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
-import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
-import java.security.PrivateKey;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 import javax.crypto.Cipher;
 import javax.swing.Action;
@@ -36,9 +31,20 @@ public class API {
 
 	private static int bankRequestID = Integer.MIN_VALUE;
 
+	private static List<String> bankNames;
+	private static List<Integer> bankPorts;
+
+	private static int faults;
+
 	//for each bank (String -> bank name)
 	//it saves the current RequestId
 	private static HashMap<String, Integer> bankRequestIdMap = new HashMap<>();
+
+	API(List<String> bankNames, List<Integer> bankPorts, int faults){
+		API.bankNames = bankNames;
+		API.bankPorts = bankPorts;
+		API.faults = faults;
+	}
 
 	public String setInitialRequestIDs(PrivateKey privateKey, int clientPort, int serverPort,
 									   InetAddress serverAddress, PublicKey bankPublic, String username,
@@ -198,11 +204,6 @@ public class API {
 			return ActionLabel.FAIL.getLabel();
 		}
 
-		logger.info(String.format("Received packet from %s:%d!%n", serverPacket.getAddress(), serverPacket.getPort()));
-		logger.info(String.format("%d bytes %n", serverPacket.getLength()));
-
-		encryptCipher.init(Cipher.DECRYPT_MODE, bankPublic);
-
 		// Convert response to string
 		String serverText = new String(serverPacket.getData(), 0, serverPacket.getLength());
 		logger.info("Received response: " + serverText);
@@ -221,6 +222,11 @@ public class API {
 
 		mac = responseJson.get("MAC").getAsString();
 
+		logger.info(String.format("Received packet from %s:%d!%n", serverPacket.getAddress(), serverPacket.getPort()));
+		logger.info(String.format("%d bytes %n", serverPacket.getLength()));
+
+		encryptCipher.init(Cipher.DECRYPT_MODE, bankPublic);
+
 		String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from, token, Integer.toString(requestID));
 
 		socket.close();
@@ -236,8 +242,8 @@ public class API {
 
 	// trying 
 	private String sendMessageAndReceiveBody(PrivateKey accountPrivateKey, int clientPort,
-											 int serverPort, InetAddress serverAddress, String bankName, PublicKey bankPublic, String username,
-											 String bodyText, int requestID, List<String> bankNames, List<String> bankPorts, String type, int faults )
+											 InetAddress serverAddress, String username,
+											 String bodyText, int requestID, String type)
 			throws GeneralSecurityException, IOException {
 		String DIGEST_ALGO = "SHA-256";
 		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
@@ -250,13 +256,11 @@ public class API {
 
 		String messageCheck;
 
-		
+		DatagramSocket socket = new DatagramSocket(clientPort);
+		socket.setSoTimeout(SOCKET_TIMEOUT);
 		
 		// send request for all replicas
 		for (int i = 0; i < bankPorts.size(); i++){
-			DatagramSocket socket = new DatagramSocket(clientPort);
-			socket.setSoTimeout(SOCKET_TIMEOUT);
-
 			// Create request message
 			JsonObject requestJson = JsonParser.parseString("{}").getAsJsonObject();
 			JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
@@ -276,9 +280,9 @@ public class API {
 			// Send request
 			byte[] clientData = requestJson.toString().getBytes();
 			logger.info(String.format("%d bytes %n", clientData.length));
-			DatagramPacket clientPacket = new DatagramPacket(clientData, clientData.length, serverAddress, serverPort);
+			DatagramPacket clientPacket = new DatagramPacket(clientData, clientData.length, serverAddress, bankPorts.get(i));
 			socket.send(clientPacket);
-			logger.info(String.format("Request packet sent to %s:%d!%n", serverAddress, serverPort));
+			logger.info(String.format("Request packet sent to %s:%d!%n", serverAddress, bankPorts.get(i)));
 
 			socket.close();
 
@@ -286,18 +290,18 @@ public class API {
 
 		int ackNumber = 0;
 		int numberOfTries = 0;
-		List<String> responseList = new List<String>();
-		List<Integer> idList = new List<Integer>();
+		List<String> responseList = new ArrayList<>();
+		List<Integer> idList = new ArrayList<>();
 		boolean writeFinished = false;
-		String writeFinalAnswer;
+		String writeFinalAnswer = null;
 		boolean readFinished = false;
-		List<Pair<String, String>> listPair = new List<Pair<String, String>>();
+		List<Pair<String, String>> listPair = new ArrayList<Pair<String, String>>();
 		// receive request based on type of operation
 		while ( ( !writeFinished && type.equals(ActionLabel.WRITE.getLabel()) ) || ( !readFinished && type.equals(ActionLabel.WRITE.getLabel()) ) &&
-				( ackNumber < bankPorts.size()             && type.equals(ActionLabel.OPEN_ACCOUNT.getLabel())  )  ||
+				( ackNumber < bankPorts.size()            && type.equals(ActionLabel.OPEN_ACCOUNT.getLabel())  )  ||
 				numberOfTries < bankPorts.size()){
 
-			DatagramSocket socket = new DatagramSocket(clientPort);
+			socket = new DatagramSocket(clientPort);
 			socket.setSoTimeout(SOCKET_TIMEOUT);
 
 			// Receive response
@@ -317,8 +321,6 @@ public class API {
 			logger.info(String.format("Received packet from %s:%d!%n", serverPacket.getAddress(), serverPacket.getPort()));
 			logger.info(String.format("%d bytes %n", serverPacket.getLength()));
 
-			encryptCipher.init(Cipher.DECRYPT_MODE, bankPublic);
-
 			// Convert response to string
 			String serverText = new String(serverPacket.getData(), 0, serverPacket.getLength());
 			logger.info("Received response: " + serverText);
@@ -336,6 +338,10 @@ public class API {
 			token = infoBankJson.get("token").getAsString();
 
 			mac = responseJson.get("MAC").getAsString();
+
+			PublicKey bankPublicKey = readPublic("keys/" + from + "_public_key.der");
+
+			encryptCipher.init(Cipher.DECRYPT_MODE, bankPublicKey);
 
 			messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from, token, Integer.toString(requestID));
 			if (!messageCheck.equals(ActionLabel.FAIL.getLabel())){
@@ -372,6 +378,20 @@ public class API {
 		} else {
 			return ActionLabel.FAIL.getLabel();
 		}
+	}
 
+
+	public static PublicKey readPublic(String publicKeyPath) throws GeneralSecurityException, IOException {
+		logger.info("Reading public key from file " + publicKeyPath + " ...");
+		FileInputStream pubFis = new FileInputStream(publicKeyPath);
+		byte[] pubEncoded = new byte[pubFis.available()];
+		pubFis.read(pubEncoded);
+		pubFis.close();
+
+		X509EncodedKeySpec pubSpec = new X509EncodedKeySpec(pubEncoded);
+		KeyFactory keyFacPub = KeyFactory.getInstance("RSA");
+		PublicKey pub = keyFacPub.generatePublic(pubSpec);
+
+		return pub;
 	}
 }

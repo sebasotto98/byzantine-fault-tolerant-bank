@@ -182,6 +182,9 @@ public class Bank {
 		File requestIdsFile = new File(bankName + "_csv_files/requestIDs.csv");
 		File signaturesFile = new File(bankName + "_csv_files/signatures.csv");
 		File transactionIdFile = new File(bankName + "_csv_files/transactionId.csv");
+		File completedSignSignatures = new File(bankName + "_csv_files/completedSignedTransactions.csv");
+		File pendingSignSignatures = new File(bankName + "_csv_files/pendingSignedTransactions.csv");
+
 		if (!replicaFolder.exists()) {
 			replicaFolder.mkdirs();
 		}
@@ -216,6 +219,20 @@ public class Bank {
 						CSVWriter.DEFAULT_LINE_END);
 				writer.writeNext(new String[]{Integer.toString(0)});
 				writer.close();
+			} catch (IOException e) {
+				logger.error("Error: ", e);
+			}
+		}
+		if (!completedSignSignatures.exists()) {
+			try {
+				requestIdsFile.createNewFile();
+			} catch (IOException e) {
+				logger.error("Error: ", e);
+			}
+		}
+		if (!pendingSignSignatures.exists()) {
+			try {
+				requestIdsFile.createNewFile();
 			} catch (IOException e) {
 				logger.error("Error: ", e);
 			}

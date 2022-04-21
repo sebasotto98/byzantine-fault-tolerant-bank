@@ -41,7 +41,7 @@ public class BankTest {
 
     @BeforeEach
     public void setUp() {
-        api = new API();
+        //api = new API();
 
         port = 9996;
         bankPort = 9997;
