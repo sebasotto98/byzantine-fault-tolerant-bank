@@ -1,12 +1,8 @@
 Stage 2 functions:
 
 	Steps (recommend in instructions):
-		- Implement Byzantine Regular Register (section 4.7 of book)
 		- Transform Byzantine Regular Register into Byzantine Atomic Register
 	
 Other:
-	- With N replicas a transaction is approved N times because access to transactions files are not synchronized between instances, only between threads
-		-> synchronize access to files between instances (IMPORTANT)
-	- Allow connection to bank from clients in different machines
 	- Complete API and Bank unit tests (+dependability tests)
 	- Refactor to be more modular???
