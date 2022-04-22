@@ -3,7 +3,6 @@ package pt.tecnico;
 import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.security.PublicKey;
-import java.time.Instant;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -14,7 +13,6 @@ import java.security.PrivateKey;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
-import java.util.List;
 
 import javax.crypto.Cipher;
 
