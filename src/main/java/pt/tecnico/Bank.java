@@ -7,8 +7,12 @@ import java.net.DatagramSocket;
 import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.crypto.Cipher;
 
@@ -28,11 +32,17 @@ public class Bank {
 	 * protocol, is 65,507 bytes (65,535 − 8 byte UDP header − 20 byte IP header).
 	 */
 	private static final int BUFFER_SIZE = (64 * 1024 - 1) - 8 - 20;
+	private static final int SHORT_REQUEST_INTERVAL = 500;
+	private static final int MIN_INGRESS_DATA_LENGTH = 10; //TODO: TO BE DISCUSSED
+	private static final int MAX_CLIENT_LOAD = BUFFER_SIZE * 10; //TODO: TO BE DISCUSSED
+	private static final int RECENT_REQUESTS_STORED = 10; //TODO: TO BE DISCUSSED
 
 	private static final String DIGEST_ALGO = "SHA-256";
 	private static final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 
 	private static final SharedBankVars bankVars = new SharedBankVars();
+	private static final Map<String, Instant> recentRequestAddressTimes = new HashMap<>();
+	private static final Map<String, List<Integer>> recentRequestAddressLengths = new HashMap<>();
 
 	//configVars
 	private static final String BANK_CONFIG_FILE = "config_files/banks.txt";
@@ -134,6 +144,11 @@ public class Bank {
 				DatagramPacket clientPacket = new DatagramPacket(buf, buf.length);
 				socket.receive(clientPacket);
 
+				if(isSimultaneousRequest(clientPacket) || isLowIngressDataLengthRequest(clientPacket)
+						|| isHighRecentLoadRequest(clientPacket)) {
+					continue;
+				}
+
 				//thread ends automatically
 				threads[currentThreadIndex] = new WorkerThread(currentThreadPort, clientPacket, logger, bankName, decryptCipher, msgDig, privKey, bankVars);
 				threads[currentThreadIndex].start();
@@ -149,6 +164,56 @@ public class Bank {
 				logger.error("Error: ", e);
 			}
 		}
+	}
+
+	private static boolean isHighRecentLoadRequest(DatagramPacket clientPacket) {
+		String requestAddress = clientPacket.getAddress().getHostAddress();
+		int requestLength = clientPacket.getLength();
+		int load = 0;
+		if(recentRequestAddressLengths.containsKey(requestAddress)) {
+			for(int length : recentRequestAddressLengths.get(requestAddress)) {
+				load += length;
+			}
+			if(load > MAX_CLIENT_LOAD) {
+				logger.info("Request denied! High recent load from client with IP address: " + requestAddress);
+				return true;
+			}
+		}
+		if(recentRequestAddressLengths.size() > RECENT_REQUESTS_STORED) {
+			recentRequestAddressLengths.remove(recentRequestAddressLengths.keySet().stream().findFirst().get());
+		}
+		if(!recentRequestAddressLengths.containsKey(requestAddress)) {
+			recentRequestAddressLengths.put(requestAddress, new ArrayList<>());
+		}
+		recentRequestAddressLengths.get(requestAddress).add(requestLength);
+
+		return false;
+	}
+
+	private static boolean isLowIngressDataLengthRequest(DatagramPacket clientPacket) {
+		String requestAddress = clientPacket.getAddress().getHostAddress();
+		int requestLength = clientPacket.getLength();
+		if(requestLength < MIN_INGRESS_DATA_LENGTH) {
+			logger.info("Request denied! Low ingress data length in request from client with IP address: " + requestAddress);
+			return true;
+		}
+		return false;
+	}
+
+	private static boolean isSimultaneousRequest(DatagramPacket clientPacket) {
+		String requestAddress = clientPacket.getAddress().getHostAddress();
+		Instant now = Instant.now();
+		if(recentRequestAddressTimes.containsKey(requestAddress)) {
+			if(Duration.between(recentRequestAddressTimes.get(requestAddress), now).toMillis() < SHORT_REQUEST_INTERVAL) {
+				logger.info("Request denied! Two or more requests in a short interval from client with IP address: " + requestAddress);
+				return true;
+			}
+		}
+		if(recentRequestAddressTimes.size() > RECENT_REQUESTS_STORED) {
+			recentRequestAddressTimes.remove(recentRequestAddressTimes.keySet().stream().findFirst().get());
+		}
+		recentRequestAddressTimes.put(requestAddress, now);
+		return false;
 	}
 
 	private static void readConfig(){

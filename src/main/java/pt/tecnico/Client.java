@@ -11,26 +11,35 @@ import java.net.InetAddress;
 import java.security.cert.CertificateException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.ArrayList;
-import java.util.InputMismatchException;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Client {
 
+    private static API api;
+
     private static final String BANK_CONFIG_FILE = "config_files/banks.txt";
+    private static final String INPUT_CHARACTER_VALIDATION = "^[a-zA-Z0-9]*$";
+    private static final String INPUT_LENGTH_VALIDATION = "^(.{4,20})";
 
     private static final List<String> bankNames = new ArrayList<>();
     private static final List<Integer> bankPorts = new ArrayList<>();
 
     private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getSimpleName());
 
-    private static final int MAX_RETRIES = 5;
+    private static final int MAX_REQUEST_RETRIES = 5;
+
+    private static Map<String, String> puzzles;
+    static {
+        puzzles = new HashMap<>();
+        puzzles.put("How much is 2+2?", "4");
+        puzzles.put("What is the capital of Portugal?", "Lisbon");
+        puzzles.put("How many days in January?", "31");
+    }
 
     private static int replicas;
     private static int faults;
-
-    private static API api;
 
     public static PublicKey readPublic(String publicKeyPath) throws GeneralSecurityException, IOException {
         logger.info("Reading public key from file " + publicKeyPath + " ...");
@@ -67,8 +76,16 @@ public class Client {
         try {
             System.out.println("Please input alias for the keyStore entry.");
             String alias = sc.nextLine();
+            while(!isRegularInput(alias, false)) {
+                System.out.println("Please enter a valid alias.");
+                alias = sc.nextLine();
+            }
             System.out.println("Please input password for the keyStore.");
             String passwordString = sc.nextLine();
+            while(!isRegularInput(passwordString, true)) {
+                System.out.println("Please enter a valid password.");
+                passwordString = sc.nextLine();
+            }
 
             String filePath = "ks/" + username + "_KeystoreFile.jks";
             FileInputStream fis = new FileInputStream(filePath);
@@ -153,39 +170,13 @@ public class Client {
             }
             switch (ch) {
                 case 1:
-                    handleOpenAccount(myPort, bankAddress, sc);
+                    if(solveRandomPuzzle(sc)) {
+                        handleOpenAccount(myPort, bankAddress, sc);
+                    }
                     break;
                 case 2:
-                    System.out.println("Please input your username.");
-                    String username = sc.nextLine();
-                    PrivateKey privateKey = getPrivateKey(username, sc);
-                    if (privateKey != null) {
-                        try {
-                            String requestedID = "-1";
-                            //for (int i = 0; i < bankPorts.size(); i++) {
-                                PublicKey bankPublicKey = null;
-                                try {
-                                    bankPublicKey = readPublic("keys/" + bankNames.get(0) + "_public_key.der");
-                                } catch (GeneralSecurityException | IOException e) {
-                                    logger.error("Error: ", e);
-                                }
-                                if (bankPublicKey != null) {
-                                    requestedID = api.setInitialRequestIDs(privateKey, myPort, bankPorts.get(0), bankAddress,
-                                            bankPublicKey, username, Integer.MAX_VALUE, bankNames.get(0));
-                                }
-                            //}
-                            if (!requestedID.equals("-1") && !requestedID.equals(ActionLabel.FAIL.getLabel())) {
-                                showSubmenu(sc, myPort, bankAddress, privateKey, username, Integer.parseInt(requestedID) + 1);
-                            } else {
-                                logger.info("RequestID invalid or Fail.");
-                                System.out.println("Impossible to log in.");
-                            }
-                        } catch (GeneralSecurityException | IOException e) {
-                            logger.error("Error: ", e);
-                        }
-                    } else {
-                        logger.info("Private key is null.");
-                        System.out.println("Impossible to log in.");
+                    if(solveRandomPuzzle(sc)) {
+                        handleLogin(myPort, bankAddress, sc);
                     }
                     break;
                 case 3:
@@ -197,8 +188,47 @@ public class Client {
         }
     }
 
-    public static void showSubmenu(Scanner sc, int myPort, InetAddress bankAddress,
+    private static void handleLogin(int myPort, InetAddress bankAddress, Scanner sc) {
+        System.out.println("Please input your username.");
+        String username = sc.nextLine();
+        while(!isRegularInput(username, false)) {
+            System.out.println("Please enter a valid username.");
+            username = sc.nextLine();
+        }
+        PrivateKey privateKey = getPrivateKey(username, sc);
+        if (privateKey != null) {
+            try {
+                String requestedID = "-1";
+                //for (int i = 0; i < bankPorts.size(); i++) {
+                PublicKey bankPublicKey = null;
+                try {
+                    bankPublicKey = readPublic("keys/" + bankNames.get(0) + "_public_key.der");
+                } catch (GeneralSecurityException | IOException e) {
+                    logger.error("Error: ", e);
+                }
+                if (bankPublicKey != null) {
+                    requestedID = api.setInitialRequestIDs(privateKey, myPort, bankPorts.get(0), bankAddress,
+                            bankPublicKey, username, Integer.MAX_VALUE, bankNames.get(0));
+                }
+                //}
+                if (!requestedID.equals("-1") && !requestedID.equals(ActionLabel.FAIL.getLabel())) {
+                    showSubmenu(sc, myPort, bankAddress, privateKey, username, Integer.parseInt(requestedID) + 1);
+                } else {
+                    logger.info("RequestID invalid or Fail.");
+                    System.out.println("Login failed.");
+                }
+            } catch (GeneralSecurityException | IOException e) {
+                logger.error("Error: ", e);
+            }
+        } else {
+            logger.info("Private key is null.");
+            System.out.println("Impossible to log in.");
+        }
+    }
+
+    private static void showSubmenu(Scanner sc, int myPort, InetAddress bankAddress,
                                    PrivateKey privateKey, String username, int requestID) {
+        System.out.println("Welcome " + username);
         int ch;
         while (true) {
             System.out.println("\n ***BFTB***");
@@ -213,20 +243,24 @@ public class Client {
             }
             switch (ch) {
                 case 1:
-                    requestID = handleSendAmount(myPort, bankAddress, requestID, sc, privateKey, username);
-                    System.out.println(requestID);
+                    if(solveRandomPuzzle(sc)) {
+                        requestID = handleSendAmount(myPort, bankAddress, requestID, sc, privateKey, username);
+                    }
                     break;
                 case 2:
-                    requestID = handleCheckAccount(myPort, bankAddress, requestID, sc, privateKey, username);
-                    System.out.println(requestID);
+                    if(solveRandomPuzzle(sc)) {
+                        requestID = handleCheckAccount(myPort, bankAddress, requestID, sc, privateKey, username);
+                    }
                     break;
                 case 3:
-                    requestID = handleReceiveAmount(myPort, bankAddress, requestID, sc, privateKey, username);
-                    System.out.println(requestID);
+                    if(solveRandomPuzzle(sc)) {
+                        requestID = handleReceiveAmount(myPort, bankAddress, requestID, sc, privateKey, username);
+                    }
                     break;
                 case 4:
-                    requestID = handleAuditAccount(myPort, bankAddress, requestID, sc, privateKey, username);
-                    System.out.println(requestID);
+                    if(solveRandomPuzzle(sc)) {
+                        requestID = handleAuditAccount(myPort, bankAddress, requestID, sc, privateKey, username);
+                    }
                     break;
                 case 5:
                     System.out.println(requestID);
@@ -243,6 +277,10 @@ public class Client {
         try {
             System.out.println("Please input username of the account's owner (to fetch public key).");
             String owner = sc.nextLine();
+            while(!isRegularInput(username, false)) {
+                System.out.println("Please enter a valid username.");
+                username = sc.nextLine();
+            }
             int numberOfTries = 0;
 
             PublicKey bankPublicKey = null;
@@ -287,7 +325,7 @@ public class Client {
                     bankResponse = ActionLabel.FAIL.getLabel();
                 }
                 numberOfTries++;
-            } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
+            } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_REQUEST_RETRIES);
             numberOfTries = 0;
 
         } catch (GeneralSecurityException | IOException e) {
@@ -303,6 +341,11 @@ public class Client {
 
         try {
             System.out.println("Which transaction do you wish to complete?");
+            boolean hasInt = sc.hasNextInt();
+            while(!hasInt) {
+                System.out.println("Please input a transaction number.");
+                hasInt = sc.hasNextInt();
+            }
             int transactionId = sc.nextInt();
             sc.nextLine(); //flush
 
@@ -314,6 +357,7 @@ public class Client {
                 bankPublicKey = readPublic("keys/" + bankNames.get(0) + "_public_key.der");
             } catch (GeneralSecurityException | IOException e) {
                 logger.error("Error: ", e);
+                bankPublicKey = null;
             }
             do {
                 bankResponse = api.receiveAmount(privateKey, myPort, bankPorts.get(0), bankAddress, bankNames.get(0), bankPublicKey, username, requestID, transactionId);
@@ -331,7 +375,7 @@ public class Client {
                     bankResponse = ActionLabel.FAIL.getLabel();
                 }
                 numberOfTries++;
-            } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
+            } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_REQUEST_RETRIES);
             numberOfTries = 0;
             
 
@@ -348,6 +392,10 @@ public class Client {
 
             System.out.println("Please input username of the account's owner (to fetch public key).");
             String owner = sc.nextLine();
+            while(!isRegularInput(owner, false)) {
+                System.out.println("Please enter a valid owner username.");
+                owner = sc.nextLine();
+            }
 
             int numberOfTries = 0;
             
@@ -394,7 +442,7 @@ public class Client {
                     bankResponse = ActionLabel.FAIL.getLabel();
                 }
                 numberOfTries++;
-            } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
+            } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_REQUEST_RETRIES);
             numberOfTries = 0;
             
 
@@ -413,8 +461,17 @@ public class Client {
 
             System.out.println("Please input username of receiver account (to fetch public key).");
             String usernameDest = sc.nextLine();
+            while(!isRegularInput(usernameDest, false)) {
+                System.out.println("Please enter a valid username.");
+                usernameDest = sc.nextLine();
+            }
 
             System.out.println("How much do you want to transfer?");
+            boolean hasFloat = sc.hasNextFloat();
+            while(!hasFloat) {
+                System.out.println("Please input a valid amount.");
+                hasFloat = sc.hasNextFloat();
+            }
             float amount = sc.nextFloat();
             sc.nextLine(); //flush
 
@@ -445,7 +502,7 @@ public class Client {
                     bankResponse = ActionLabel.FAIL.getLabel();
                 }
                 numberOfTries++;
-            } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
+            } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_REQUEST_RETRIES);
             numberOfTries = 0;
             
         } catch (GeneralSecurityException | IOException e) {
@@ -462,13 +519,26 @@ public class Client {
         PrivateKey privateKey;
         System.out.println("Please input your username (to fetch public and private key).");
         username = sc.nextLine();
+        while(!isRegularInput(username, false)) {
+            System.out.println("Please enter a valid username.");
+            username = sc.nextLine();
+        }
 
         privateKeyPath = "keys/" + username + "_private_key.der";
 
         System.out.println("Please input alias for the keyStore entry.");
         String alias = sc.nextLine();
+        while(!isRegularInput(alias, false)) {
+            System.out.println("Please enter a valid alias.");
+            alias = sc.nextLine();
+        }
+
         System.out.println("Please input password for the keyStore.");
         String passwordString = sc.nextLine();
+        while(!isRegularInput(passwordString, true)) {
+            System.out.println("Please enter a valid password.");
+            passwordString = sc.nextLine();
+        }
 
         try {
             privateKey = readPrivate(privateKeyPath);
@@ -497,13 +567,27 @@ public class Client {
                 }
 
                 numberOfTries++;
-            } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_RETRIES);
+            } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_REQUEST_RETRIES);
             numberOfTries = 0;
             
         } catch (GeneralSecurityException | IOException e) {
             logger.error("Error: ", e);
         }
         privateKey = null;
+    }
+
+    private static boolean isRegularInput(String input, boolean pass) {
+        Matcher m;
+        if(!pass) {
+            Pattern p1 = Pattern.compile(INPUT_CHARACTER_VALIDATION);
+            m = p1.matcher(input);
+            if(!m.matches()) {
+                return false;
+            }
+        }
+        Pattern p2 = Pattern.compile(INPUT_LENGTH_VALIDATION);
+        m = p2.matcher(input);
+        return m.matches();
     }
 
     private static void readConfig() {
@@ -523,6 +607,20 @@ public class Client {
             reader.close();
         } catch (IOException e) {
             logger.info("openAccount: Error reading requestId file.");
+        }
+    }
+
+    private static boolean solveRandomPuzzle(Scanner sc) {
+        Random generator = new Random();
+        Object[] keys = puzzles.keySet().toArray();
+        String puzzle = (String) keys[generator.nextInt(keys.length)];
+        System.out.println(puzzle);
+        String answer = sc.nextLine();
+        if(answer.equals(puzzles.get(puzzle))) {
+            return true;
+        } else {
+            System.out.println("Wrong answer. Please try again.");
+            return false;
         }
     }
 }
