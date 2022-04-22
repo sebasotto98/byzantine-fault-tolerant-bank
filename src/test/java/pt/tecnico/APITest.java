@@ -13,40 +13,46 @@ import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.ArrayList;
+import java.util.List;
 
 public class APITest {
 
+    private static final List<String> bankNames;
+    static {
+        bankNames = new ArrayList<>();
+        bankNames.add("bftb1");
+    }
+    private static final List<Integer> bankPorts;
+    static {
+        bankPorts = new ArrayList<>();
+        bankPorts.add(5000);
+    }
+    private static final int faults = 0;
+
     private API api;
     private Thread bankThread;
-    private int port;
-    private int bankPort;
+    private final int port = 6000;
     private InetAddress bankAddress;
     private String bankResponse;
-    private String username;
+    private final String username = "client1";
     private PrivateKey privateKey;
-    private PublicKey publicKey;
     private PublicKey bankPublicKey;
 
     @BeforeEach
     public void setUp() {
-        //api = new API();
+        api = new API(bankNames, bankPorts, faults);
 
-        port = 9996;
-        bankPort = 9997;
         try {
             bankAddress = InetAddress.getLocalHost();
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
 
-        username = "client1";
-
         String privateKeyPath = "keys/" + username + "_private_key.der";
-        String publicKeyPath = "keys/" + username + "_public_key.der";
         try {
             privateKey = Client.readPrivate(privateKeyPath);
-            publicKey = Client.readPublic(publicKeyPath);
-            bankPublicKey = Client.readPublic("keys/bank_public_key.der");
+            bankPublicKey = Client.readPublic("keys/" + bankNames.get(0) + "_public_key.der");
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
         }
@@ -60,20 +66,20 @@ public class APITest {
         }
 
         try {
-            new FileOutputStream("csv_files/clients.csv").close();
-            File client1CompleteTransactionHistoryFile = new File("csv_files/client1_complete_transaction_history.csv");
+            new FileOutputStream(bankNames.get(0) + "_csv_files/clients.csv").close();
+            File client1CompleteTransactionHistoryFile = new File(bankNames.get(0) + "_csv_files/client1_complete_transaction_history.csv");
             if(client1CompleteTransactionHistoryFile.exists()) {
                 client1CompleteTransactionHistoryFile.delete();
             }
-            File client2CompleteTransactionHistoryFile = new File("csv_files/client2_complete_transaction_history.csv");
+            File client2CompleteTransactionHistoryFile = new File(bankNames.get(0) + "_csv_files/client2_complete_transaction_history.csv");
             if(client2CompleteTransactionHistoryFile.exists()) {
                 client2CompleteTransactionHistoryFile.delete();
             }
-            File client1PendingTransactionHistoryFile = new File("csv_files/client1_pending_transaction_history.csv");
+            File client1PendingTransactionHistoryFile = new File(bankNames.get(0) + "_csv_files/client1_pending_transaction_history.csv");
             if(client1PendingTransactionHistoryFile.exists()) {
                 client1PendingTransactionHistoryFile.delete();
             }
-            File client2PendingTransactionHistoryFile = new File("csv_files/client2_pending_transaction_history.csv");
+            File client2PendingTransactionHistoryFile = new File(bankNames.get(0) + "_csv_files/client2_pending_transaction_history.csv");
             if(client2PendingTransactionHistoryFile.exists()) {
                 client2PendingTransactionHistoryFile.delete();
             }
@@ -85,12 +91,12 @@ public class APITest {
     @Test
     public void openAccount_accountCreated_success() {
 
-        BankHelper bankHelper = new BankHelper();
+        BankHelper bankHelper = new BankHelper(bankNames.get(0));
         bankThread = new Thread(bankHelper);
         bankThread.start();
 
         try {
-            bankResponse = api.openAccount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, 0, "bank");
+            bankResponse = api.openAccount(privateKey, port, bankPorts.get(0), bankAddress, bankPublicKey, username, -1, bankNames.get(0));
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
         }
@@ -103,7 +109,7 @@ public class APITest {
     public void openAccount_accountCreated_failure() {
 
         try {
-            bankResponse = api.openAccount(privateKey, port, bankPort, bankAddress, bankPublicKey, username, 0, "bank");
+            bankResponse = api.openAccount(privateKey, port, bankPorts.get(0), bankAddress, bankPublicKey, username, -1, bankNames.get(0));
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
         }

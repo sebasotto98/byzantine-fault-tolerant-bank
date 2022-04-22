@@ -4,17 +4,17 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.opencsv.CSVWriter;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import java.io.*;
+import java.lang.invoke.MethodHandles;
 import java.net.*;
 import java.security.*;
 import java.security.spec.X509EncodedKeySpec;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class WorkerThread extends Thread {
+
+    private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getSimpleName());
 
     private static final int INITIAL_ACCOUNT_BALANCE = 1000;
     private static final int BUFFER_SIZE = (64 * 1024 - 1) - 8 - 20;
@@ -38,16 +40,12 @@ public class WorkerThread extends Thread {
 
     private final DatagramPacket clientPacket;
 
-    private final Logger logger;
-
-    private final String NAME;
-    private final Cipher DecryptCipher;
+    private final String name;
+    private final Cipher decryptCipher;
     private final MessageDigest msgDig;
     private final PrivateKey privKey;
     private final AtomicInteger bankRequestId;
     private final SharedBankVars bankVars;
-
-    private final DatagramSocket socket;
 
     private final Object clientsFileLock;
     private final Object requestIdFileLock;
@@ -55,22 +53,19 @@ public class WorkerThread extends Thread {
     private final Object transactionIdFileLock;
 
     private InetAddress clientAddress;
+    private DatagramSocket socket;
     private int clientPort;
 
-    public WorkerThread(int socketPort, DatagramPacket clientPacket, Logger logger, String name,
-                        Cipher DecryptCipher, MessageDigest msgDig, PrivateKey privKey,
-                        SharedBankVars bankVars) throws SocketException {
+    public WorkerThread(int socketPort, String name, Cipher decryptCipher, MessageDigest msgDig, PrivateKey privKey) {
+        this.bankVars = new SharedBankVars();
 
-        this.bankVars = bankVars;
+        this.clientPacket = null;
 
-        this.clientPacket = clientPacket;
-
-        this.DecryptCipher = DecryptCipher;
+        this.decryptCipher = decryptCipher;
         this.msgDig = msgDig;
         this.privKey = privKey;
 
-        this.logger = logger;
-        this.NAME = name;
+        this.name = name;
 
         this.bankRequestId = this.bankVars.getBankRequestId();
 
@@ -79,13 +74,44 @@ public class WorkerThread extends Thread {
         this.signaturesFileLock = this.bankVars.getSignaturesFileLock();
         this.transactionIdFileLock = this.bankVars.getTransactionIdFileLock();
 
-        this.socket = new DatagramSocket(socketPort);
+        try {
+            this.socket = new DatagramSocket(socketPort);
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public WorkerThread(int socketPort, DatagramPacket clientPacket, String name,
+                        Cipher DecryptCipher, MessageDigest msgDig, PrivateKey privKey,
+                        SharedBankVars bankVars) {
+
+        this.bankVars = bankVars;
+
+        this.clientPacket = clientPacket;
+
+        this.decryptCipher = DecryptCipher;
+        this.msgDig = msgDig;
+        this.privKey = privKey;
+
+        this.name = name;
+
+        this.bankRequestId = this.bankVars.getBankRequestId();
+
+        this.clientsFileLock = this.bankVars.getClientsFileLock();
+        this.requestIdFileLock = this.bankVars.getRequestIdFileLock();
+        this.signaturesFileLock = this.bankVars.getSignaturesFileLock();
+        this.transactionIdFileLock = this.bankVars.getTransactionIdFileLock();
+
+        try {
+            this.socket = new DatagramSocket(socketPort);
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void run() {
         try {
-            System.out.println("I AM THREAD " + Thread.currentThread().getId());
             clientAddress = clientPacket.getAddress();
             clientPort = clientPacket.getPort();
             int clientLength = clientPacket.getLength();
@@ -103,7 +129,7 @@ public class WorkerThread extends Thread {
             JsonObject responseJson = JsonParser.parseString("{}").getAsJsonObject();
 
             JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
-            infoJson.addProperty("from", NAME);
+            infoJson.addProperty("from", name);
             infoJson.addProperty("to", response[1]);
             infoJson.addProperty("requestId", Integer.toString(bankRequestId.get()));
             infoJson.addProperty("body", response[0]);
@@ -113,14 +139,14 @@ public class WorkerThread extends Thread {
 
             responseJson.add("info", infoJson);
 
-            if (DecryptCipher != null && msgDig != null) {
-                DecryptCipher.init(Cipher.ENCRYPT_MODE, privKey);
+            if (decryptCipher != null && msgDig != null) {
+                decryptCipher.init(Cipher.ENCRYPT_MODE, privKey);
                 msgDig.update(infoJson.toString().getBytes());
-                String ins = Base64.getEncoder().encodeToString(DecryptCipher.doFinal(msgDig.digest()));
+                String ins = Base64.getEncoder().encodeToString(decryptCipher.doFinal(msgDig.digest()));
                 responseJson.addProperty("MAC", ins);
                 synchronized (signaturesFileLock) {
                     //Store signature
-                    writeToCSV(this.NAME + SIGNATURES_CSV_FILE_PATH, new String[]{NAME, response[1], ins}, true);
+                    writeToCSV(this.name + SIGNATURES_CSV_FILE_PATH, new String[]{name, response[1], ins}, true);
                 }
             }
 
@@ -205,7 +231,7 @@ public class WorkerThread extends Thread {
 
         synchronized (signaturesFileLock) {
             //Store signature
-            writeToCSV(this.NAME + SIGNATURES_CSV_FILE_PATH, new String[]{from, NAME, mac}, true);
+            writeToCSV(this.name + SIGNATURES_CSV_FILE_PATH, new String[]{from, name, mac}, true);
         }
 
         response[0] = setResponse(bodyArray, from, signature);
@@ -223,7 +249,7 @@ public class WorkerThread extends Thread {
         BufferedReader reader;
         String[] client;
         try {
-            fileReader = new FileReader(this.NAME + REQUEST_ID_CSV_FILE_PATH);
+            fileReader = new FileReader(this.name + REQUEST_ID_CSV_FILE_PATH);
             reader = new BufferedReader(fileReader);
             String line;
             while ((line = reader.readLine()) != null) {
@@ -237,7 +263,7 @@ public class WorkerThread extends Thread {
             fileReader.close();
             reader.close();
         } catch (IOException e) {
-            logger.info("openAccount: Error reading requestId file.");
+            logger.info("Error reading requestId file.");
         }
         return "-1";
     }
@@ -249,7 +275,7 @@ public class WorkerThread extends Thread {
         String[] client;
         List<String[]> clients = new ArrayList<>();
         try {
-            fileReader = new FileReader(this.NAME + REQUEST_ID_CSV_FILE_PATH);
+            fileReader = new FileReader(this.name + REQUEST_ID_CSV_FILE_PATH);
             reader = new BufferedReader(fileReader);
             String line;
             while ((line = reader.readLine()) != null) {
@@ -259,7 +285,7 @@ public class WorkerThread extends Thread {
             fileReader.close();
             reader.close();
         } catch (IOException e) {
-            logger.info("openAccount: Error reading requestId file.");
+            logger.info("Error reading requestId file.");
         }
 
         for (String[] c : clients) {
@@ -270,7 +296,7 @@ public class WorkerThread extends Thread {
         }
         boolean flag = false;
         for (String[] c : clients) {
-            writeToCSV(this.NAME + REQUEST_ID_CSV_FILE_PATH, c, flag);
+            writeToCSV(this.name + REQUEST_ID_CSV_FILE_PATH, c, flag);
             flag = true;
         }
     }
@@ -305,7 +331,7 @@ public class WorkerThread extends Thread {
         String[] client;
         try {
             synchronized (clientsFileLock) {
-                fileReader = new FileReader(this.NAME + CLIENTS_CSV_FILE_PATH);
+                fileReader = new FileReader(this.name + CLIENTS_CSV_FILE_PATH);
                 reader = new BufferedReader(fileReader);
 
                 String line;
@@ -324,14 +350,13 @@ public class WorkerThread extends Thread {
         }
 
         synchronized (clientsFileLock) {
-            writeToCSV(this.NAME + CLIENTS_CSV_FILE_PATH, new String[]{username, Integer.toString(INITIAL_ACCOUNT_BALANCE),
+            writeToCSV(this.name + CLIENTS_CSV_FILE_PATH, new String[]{username, Integer.toString(INITIAL_ACCOUNT_BALANCE),
                     Integer.toString(INITIAL_ACCOUNT_BALANCE)}, true);
         }
-
         createTransactionHistoryFiles(username);
 
         synchronized (requestIdFileLock) {
-            writeToCSV(this.NAME + REQUEST_ID_CSV_FILE_PATH, new String[]{username, Integer.toString(0)}, true);
+            writeToCSV(this.name + REQUEST_ID_CSV_FILE_PATH, new String[]{username, Integer.toString(0)}, true);
         }
         return ActionLabel.ACCOUNT_CREATED.getLabel();
     }
@@ -342,7 +367,7 @@ public class WorkerThread extends Thread {
         String[] client = null;
         try {
             synchronized (clientsFileLock) {
-                fileReader = new FileReader(this.NAME + CLIENTS_CSV_FILE_PATH);
+                fileReader = new FileReader(this.name + CLIENTS_CSV_FILE_PATH);
                 reader = new BufferedReader(fileReader);
 
                 String line;
@@ -371,7 +396,7 @@ public class WorkerThread extends Thread {
                     response.append(",");
                 }
             }
-            String ownerPendingTransactionsPath = this.NAME + "_csv_files/" + owner + "_complete_transaction_history.csv";
+            String ownerPendingTransactionsPath = this.name + "_csv_files/" + owner + "_complete_transaction_history.csv";
             try {
                 synchronized (bankVars.getClientLock(owner)) {
                     fileReader = new FileReader(ownerPendingTransactionsPath);
@@ -399,7 +424,7 @@ public class WorkerThread extends Thread {
         String[] client = null;
         try {
             synchronized (clientsFileLock) {
-                fileReader = new FileReader(this.NAME + CLIENTS_CSV_FILE_PATH);
+                fileReader = new FileReader(this.name + CLIENTS_CSV_FILE_PATH);
                 reader = new BufferedReader(fileReader);
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -427,7 +452,7 @@ public class WorkerThread extends Thread {
                     response.append(",");
                 }
             }
-            String ownerPendingTransactionsPath = this.NAME + "_csv_files/" + owner + "_pending_transaction_history.csv";
+            String ownerPendingTransactionsPath = this.name + "_csv_files/" + owner + "_pending_transaction_history.csv";
             try {
                 synchronized (bankVars.getClientLock(owner)) {
                     fileReader = new FileReader(ownerPendingTransactionsPath);
@@ -457,7 +482,7 @@ public class WorkerThread extends Thread {
         BufferedReader reader;
         try {
             synchronized (clientsFileLock) {
-                fileReader = new FileReader(this.NAME + CLIENTS_CSV_FILE_PATH);
+                fileReader = new FileReader(this.name + CLIENTS_CSV_FILE_PATH);
                 reader = new BufferedReader(fileReader);
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -501,17 +526,17 @@ public class WorkerThread extends Thread {
             boolean flag = false;
             synchronized (clientsFileLock) {
                 for (String[] c : clients) {
-                    writeToCSV(this.NAME + CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
+                    writeToCSV(this.name + CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
                     flag = true;
                 }
             }
 
-            String receiverPendingTransactionsFile = this.NAME + "_csv_files/" + receiver + "_pending_transaction_history.csv";
-            String senderPendingTransactionsFile = this.NAME + "_csv_files/" + username + "_pending_transaction_history.csv";
+            String receiverPendingTransactionsFile = this.name + "_csv_files/" + receiver + "_pending_transaction_history.csv";
+            String senderPendingTransactionsFile = this.name + "_csv_files/" + username + "_pending_transaction_history.csv";
 
             int transactionId = readTransactionIdAndIncrement();
             if (transactionId == -1){
-                logger.info("send amunt: error reading transaction id file");
+                logger.info("sendAmount: Error reading transaction id file.");
                 return ActionLabel.FAIL.getLabel();
             }
 
@@ -562,7 +587,7 @@ public class WorkerThread extends Thread {
         BufferedReader reader;
         try {
             synchronized (clientsFileLock) {
-                fileReader = new FileReader(this.NAME + CLIENTS_CSV_FILE_PATH);
+                fileReader = new FileReader(this.name + CLIENTS_CSV_FILE_PATH);
                 reader = new BufferedReader(fileReader);
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -573,7 +598,7 @@ public class WorkerThread extends Thread {
                 reader.close();
             }
         } catch (IOException e) {
-            System.out.println("sendAmount: Error reading clients file.");
+            logger.info("receiveAmount: Error reading clients file.");
             return ActionLabel.FAIL.getLabel();
         }
 
@@ -589,7 +614,7 @@ public class WorkerThread extends Thread {
         }
 
         String[] pendingTransaction;
-        String usernamePendingTransactionsPath = this.NAME + "_csv_files/" + username + "_pending_transaction_history.csv";
+        String usernamePendingTransactionsPath = this.name + "_csv_files/" + username + "_pending_transaction_history.csv";
         List<String[]> pendingTransactions = new ArrayList<>();
         try {
             synchronized (bankVars.getClientLock(username)) {
@@ -604,7 +629,7 @@ public class WorkerThread extends Thread {
                 reader.close();
             }
         } catch (IOException e) {
-            System.out.println("sendAmount: Error reading clients file.");
+            logger.info("receiveAmount: Error reading clients file.");
             return ActionLabel.FAIL.getLabel();
         }
 
@@ -651,14 +676,14 @@ public class WorkerThread extends Thread {
             boolean flag = false;
             synchronized (clientsFileLock) {
                 for (String[] c : clients) {
-                    writeToCSV(this.NAME + CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
+                    writeToCSV(this.name + CLIENTS_CSV_FILE_PATH, c, flag); //rewrite clients file
                     flag = true;
                 }
             }
 
             // updating transactions in
             String[] pendingTransactionSender;
-            String usernamePendingTransactionsSenderPath = this.NAME + "_csv_files/" + sender + "_pending_transaction_history.csv";
+            String usernamePendingTransactionsSenderPath = this.name + "_csv_files/" + sender + "_pending_transaction_history.csv";
             List<String[]> pendingTransactionsSender = new ArrayList<>();
             String[] transactionInSender = null;
             try {
@@ -678,34 +703,34 @@ public class WorkerThread extends Thread {
                     reader.close();
                 }
             } catch (IOException e) {
-                System.out.println("sendAmount: Error reading clients file.");
+                logger.info("receiveAmount: Error reading clients file.");
                 return ActionLabel.FAIL.getLabel();
             }
 
             pendingTransactions.remove(receiverTransaction);
             pendingTransactionsSender.remove(transactionInSender);
 
-            String receiverPendingTransactionsFile = this.NAME + "_csv_files/" + username + "_pending_transaction_history.csv";
-            String receiverTransactionsFile = this.NAME + "_csv_files/" + username + "_complete_transaction_history.csv";
-            String senderPendingTransactionsFile = this.NAME + "_csv_files/" + sender + "_pending_transaction_history.csv";
-            String senderCompletedTransactionsFile = this.NAME + "_csv_files/" + sender + "_complete_transaction_history.csv";
+            String receiverPendingTransactionsFile = this.name + "_csv_files/" + username + "_pending_transaction_history.csv";
+            String receiverTransactionsFile = this.name + "_csv_files/" + username + "_complete_transaction_history.csv";
+            String senderPendingTransactionsFile = this.name + "_csv_files/" + sender + "_pending_transaction_history.csv";
+            String senderCompletedTransactionsFile = this.name + "_csv_files/" + sender + "_complete_transaction_history.csv";
 
-            System.out.println("Receiver pending " + pendingTransactions.size() + "; sender pending " + pendingTransactionsSender.size());
-            System.out.println("");
-            System.out.println("");
-            System.out.println("");
-            System.out.println("");
+            logger.info("Receiver pending " + pendingTransactions.size() + "; sender pending " + pendingTransactionsSender.size());
+            logger.info("");
+            logger.info("");
+            logger.info("");
+            logger.info("");
 
             synchronized (bankVars.getClientLock(username)) {
                 synchronized (bankVars.getClientLock(sender)) {
                     if (pendingTransactions.size() == 0) {
                         // clear all contents of file
                         try {
-                            File pendingTransactionHistoryFile = new File(this.NAME + "_csv_files/" + username + "_pending_transaction_history.csv");
+                            File pendingTransactionHistoryFile = new File(this.name + "_csv_files/" + username + "_pending_transaction_history.csv");
                             pendingTransactionHistoryFile.delete();
                             pendingTransactionHistoryFile.createNewFile();
                         } catch (IOException e) {
-                            System.out.println("sendAmount: Error reading clients file.");
+                            logger.info("receiveAmount: Error reading clients file.");
                             return ActionLabel.FAIL.getLabel();
                         }
                     } else {
@@ -719,11 +744,11 @@ public class WorkerThread extends Thread {
                     if (pendingTransactionsSender.size() == 0) {
                         // clear all contents of file
                         try {
-                            File pendingTransactionHistoryFile = new File(this.NAME + "_csv_files/" + sender + "_pending_transaction_history.csv");
+                            File pendingTransactionHistoryFile = new File(this.name + "_csv_files/" + sender + "_pending_transaction_history.csv");
                             pendingTransactionHistoryFile.delete();
                             pendingTransactionHistoryFile.createNewFile();
                         } catch (IOException e) {
-                            System.out.println("sendAmount: Error reading clients file.");
+                            logger.info("receiveAmount: Error reading clients file.");
                             return ActionLabel.FAIL.getLabel();
                         }
                     } else {
@@ -745,7 +770,7 @@ public class WorkerThread extends Thread {
 
             return ActionLabel.COMPLETED_TRANSACTION.getLabel();
         } else {
-            System.out.println("sendAmount: Sender/Receiver client not found!");
+            logger.info("receiveAmount: Sender/Receiver client not found!");
             return ActionLabel.CLIENT_NOT_FOUND.getLabel();
         }
 
@@ -753,8 +778,8 @@ public class WorkerThread extends Thread {
 
     private void createTransactionHistoryFiles(String username) {
         synchronized (bankVars.getClientLock(username)) {
-            File completeTransactionHistoryFile = new File(this.NAME + "_csv_files/" + username + "_complete_transaction_history.csv");
-            File pendingTransactionHistoryFile = new File(this.NAME + "_csv_files/" + username + "_pending_transaction_history.csv");
+            File completeTransactionHistoryFile = new File(this.name + "_csv_files/" + username + "_complete_transaction_history.csv");
+            File pendingTransactionHistoryFile = new File(this.name + "_csv_files/" + username + "_pending_transaction_history.csv");
             if (!completeTransactionHistoryFile.exists()) {
                 try {
                     completeTransactionHistoryFile.createNewFile();
@@ -813,7 +838,7 @@ public class WorkerThread extends Thread {
         BufferedReader reader;
         try {
             synchronized (transactionIdFileLock) {
-                fileReader = new FileReader(this.NAME + TRANSACTION_ID_FILE_PATH);
+                fileReader = new FileReader(this.name + TRANSACTION_ID_FILE_PATH);
                 reader = new BufferedReader(fileReader);
                 String line = reader.readLine();
                 transactionId = Integer.parseInt(line);
@@ -821,12 +846,12 @@ public class WorkerThread extends Thread {
                 reader.close();
             }
         } catch (IOException e) {
-            System.out.println("sendAmount: Error reading clients file.");
+            logger.info("Error reading transaction id file.");
             return -1;
         }
         int newval = transactionId + 1;
         String[] valueStrings = new String[]{Integer.toString(newval)};
-        writeToCSV(this.NAME + TRANSACTION_ID_FILE_PATH, valueStrings, false);
+        writeToCSV(this.name + TRANSACTION_ID_FILE_PATH, valueStrings, false);
         return transactionId;
     }
 
@@ -834,7 +859,7 @@ public class WorkerThread extends Thread {
             throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, IOException {
 
         JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
-        infoJson.addProperty("from", NAME);
+        infoJson.addProperty("from", name);
         infoJson.addProperty("to", username);
         infoJson.addProperty("toSign", toSign);
         infoJson.addProperty("body", ActionLabel.SIGN.getLabel());
@@ -843,10 +868,10 @@ public class WorkerThread extends Thread {
         JsonObject responseJson = JsonParser.parseString("{}").getAsJsonObject();
         responseJson.add("info", infoJson);
 
-        if (DecryptCipher != null && msgDig != null) {
-            DecryptCipher.init(Cipher.ENCRYPT_MODE, privKey);
+        if (decryptCipher != null && msgDig != null) {
+            decryptCipher.init(Cipher.ENCRYPT_MODE, privKey);
             msgDig.update(infoJson.toString().getBytes());
-            String ins = Base64.getEncoder().encodeToString(DecryptCipher.doFinal(msgDig.digest()));
+            String ins = Base64.getEncoder().encodeToString(decryptCipher.doFinal(msgDig.digest()));
             responseJson.addProperty("MAC", ins);
         }
 
@@ -959,7 +984,7 @@ public class WorkerThread extends Thread {
             return ActionLabel.FAIL.getLabel();
         }
 
-        writeToCSV(this.NAME + PENDING_TRANSACTION_SIGN_FILE_PATH,body.split(","),true);
+        writeToCSV(this.name + PENDING_TRANSACTION_SIGN_FILE_PATH,body.split(","),true);
 
         return ActionLabel.SUCCESS.getLabel();
     }

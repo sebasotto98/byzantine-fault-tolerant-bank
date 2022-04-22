@@ -34,7 +34,6 @@ public class API {
 
 	private static final int BUFFER_SIZE = 65507;
 	private static final int SOCKET_TIMEOUT = 5000;
-	private static final int ACCEPTED_INTERVAL = 5;
 
 	private static int bankRequestID = Integer.MIN_VALUE;
 
@@ -47,7 +46,7 @@ public class API {
 	//it saves the current RequestId
 	private static HashMap<String, Integer> bankRequestIdMap = new HashMap<>();
 
-	API(List<String> bankNames, List<Integer> bankPorts, int faults){
+	API(List<String> bankNames, List<Integer> bankPorts, int faults) {
 		API.bankNames = bankNames;
 		API.bankPorts = bankPorts;
 		API.faults = faults;
@@ -150,7 +149,7 @@ public class API {
 				bankRequestIdMap.replace(bankName, idReceived);
 			}
 		}
-		if (Integer.parseInt(token) != Integer.parseInt(requestID)){
+		if (Integer.parseInt(token) != Integer.parseInt(requestID)) {
 			logger.info("Message is duplicate, shall be ignored");
 			result = ActionLabel.FAIL.getLabel();
 		}
@@ -159,9 +158,7 @@ public class API {
 	}
 
 
-
-
-	// trying 
+	// trying
 	private String sendMessageAndReceiveBody(PrivateKey accountPrivateKey, int clientPort,
 											 InetAddress serverAddress, String username,
 											 String bodyText, int requestID, String type)
@@ -179,9 +176,9 @@ public class API {
 
 		DatagramSocket socket = new DatagramSocket(clientPort);
 		socket.setSoTimeout(SOCKET_TIMEOUT);
-		
+
 		// send request for all replicas
-		for (int i = 0; i < bankPorts.size(); i++){
+		for (int i = 0; i < bankPorts.size(); i++) {
 			//socket = new DatagramSocket(clientPort);
 			//socket.setSoTimeout(SOCKET_TIMEOUT);
 
@@ -224,18 +221,15 @@ public class API {
 		boolean writeFinished = false;
 		String writeFinalAnswer = null;
 		boolean readFinished = false;
-		HashMap<Integer, String> valueID = new HashMap<Integer, String>();
+		HashMap<Integer, String> valueID = new HashMap<>();
 		String operation = bodyText.split(",")[0];
 		int maxId = 0;
-		
+
 		// receive request based on type of operation
-		// debug prints
-		System.out.println("type = " + type);
-		System.out.println("size = " + bankPorts.size());
-		while ( ( ( !writeFinished && type.equals(ActionLabel.WRITE.getLabel()) ) || 
-				  ( !readFinished  && type.equals(ActionLabel.READ.getLabel() ) ) ||
-				  ( type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) || type.equals(ActionLabel.REQUEST_MY_ID.getLabel()) ) ) 
-				&& numberOfTries < bankPorts.size()){
+		while (((!writeFinished && type.equals(ActionLabel.WRITE.getLabel())) ||
+				(!readFinished && type.equals(ActionLabel.READ.getLabel())) ||
+				(type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) || type.equals(ActionLabel.REQUEST_MY_ID.getLabel())))
+				&& numberOfTries < bankPorts.size()) {
 
 			socket = new DatagramSocket(clientPort);
 			socket.setSoTimeout(SOCKET_TIMEOUT);
@@ -280,51 +274,50 @@ public class API {
 			encryptCipher.init(Cipher.DECRYPT_MODE, bankPublicKey);
 
 			messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from, token, Integer.toString(requestID));
-			System.out.println("message check = " + messageCheck);
-			if (!messageCheck.equals(ActionLabel.FAIL.getLabel())){
+			if (!messageCheck.equals(ActionLabel.FAIL.getLabel())) {
 				responseList.add(messageCheck);
 
-				if (type.equals(ActionLabel.WRITE.getLabel())){
+				if (type.equals(ActionLabel.WRITE.getLabel())) {
 					int occurrences = Collections.frequency(responseList, messageCheck);
-					if (occurrences >= (bankPorts.size()+faults)/2){ // é preciso verificar se sao iguais
+					if (occurrences >= (bankPorts.size() + faults) / 2) { // é preciso verificar se sao iguais
 						writeFinished = true;
 						writeFinalAnswer = messageCheck;
 					}
-					
-				} else if (type.equals(ActionLabel.READ.getLabel())){
-					System.out.println("bodyText = " + body);
+
+				} else if (type.equals(ActionLabel.READ.getLabel())) {
+					logger.info("bodyText = " + body);
 					String userBeingSeen = body.split(",")[0];
-					System.out.println("user with key = " + body.split(",")[0]);
+					logger.info("user with key = " + body.split(",")[0]);
 					int numberOfSignatures = checkSignatures(body, operation, userBeingSeen);
-					System.out.println("number of signatures = " + numberOfSignatures);
-					if (numberOfSignatures != -1){
+					logger.info("number of signatures = " + numberOfSignatures);
+					if (numberOfSignatures != -1) {
 						ackNumber++;
 						valueID.put(numberOfSignatures, body);
 					}
-					if (ackNumber >= (bankPorts.size()+faults)/2){
+					if (ackNumber >= (bankPorts.size() + faults) / 2) {
 						readFinished = true;
 					}
-				} else if (type.equals(ActionLabel.REQUEST_MY_ID.getLabel())){
-					if (Integer.parseInt(body) > maxId){
+				} else if (type.equals(ActionLabel.REQUEST_MY_ID.getLabel())) {
+					if (Integer.parseInt(body) > maxId) {
 						maxId = Integer.parseInt(body);
 					}
 				}
 			}
-			
+
 			socket.close();
 			logger.info("Socket closed");
 			numberOfTries++;
 
 		}
 
-		if (type.equals(ActionLabel.WRITE.getLabel()) && writeFinished){
+		if (type.equals(ActionLabel.WRITE.getLabel()) && writeFinished) {
 			return writeFinalAnswer;
-		} else if (type.equals(ActionLabel.READ.getLabel()) && readFinished){
+		} else if (type.equals(ActionLabel.READ.getLabel()) && readFinished) {
 			Integer key = Collections.max(valueID.keySet());
 			return valueID.get(key);
-		} else if (type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) && responseList.size() == numberOfTries){
+		} else if (type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) && responseList.size() == numberOfTries) {
 			return ActionLabel.ACCOUNT_CREATED.getLabel();
-		} else if (type.equals(ActionLabel.REQUEST_MY_ID.getLabel()) && responseList.size() == numberOfTries){
+		} else if (type.equals(ActionLabel.REQUEST_MY_ID.getLabel()) && responseList.size() == numberOfTries) {
 			return Integer.toString(maxId);
 		} else {
 			return ActionLabel.FAIL.getLabel();
@@ -346,24 +339,24 @@ public class API {
 		return pub;
 	}
 
-	private boolean checkSignatureInfo(String transactionString, String type, String userWithTransaction) 
-							throws NoSuchAlgorithmException, GeneralSecurityException, InvalidKeyException, IOException{
-		System.out.println("transactionString = " + transactionString);
+	private boolean checkSignatureInfo(String transactionString, String type, String userWithTransaction)
+			throws GeneralSecurityException, IOException {
+		logger.info("transactionString = " + transactionString);
 		String[] splited = transactionString.split(",");
 
 		String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 		Cipher encryptCipher = Cipher.getInstance(CIPHER_ALGO);
-		
+
 		int size = splited.length;
 		String sign;
 
-		if (type.equals(ActionLabel.AUDIT_ACCOUNT.getLabel())){
+		if (type.equals(ActionLabel.AUDIT_ACCOUNT.getLabel())) {
 
 			PublicKey usernameKey = readPublic("keys/" + userWithTransaction + "_public_key.der");
 			encryptCipher.init(Cipher.DECRYPT_MODE, usernameKey);
 
 			try {
-				sign = Base64.getEncoder().encodeToString(encryptCipher.doFinal(Base64.getDecoder().decode(splited[size-1])));
+				sign = Base64.getEncoder().encodeToString(encryptCipher.doFinal(Base64.getDecoder().decode(splited[size - 1])));
 			} catch (Exception e) {
 				logger.info("Signature does not match!");
 				return false;
@@ -373,7 +366,7 @@ public class API {
 			encryptCipher.init(Cipher.DECRYPT_MODE, usernameKey);
 
 			try {
-				sign = Base64.getEncoder().encodeToString(encryptCipher.doFinal(Base64.getDecoder().decode(splited[size-1])));
+				sign = Base64.getEncoder().encodeToString(encryptCipher.doFinal(Base64.getDecoder().decode(splited[size - 1])));
 			} catch (Exception e) {
 				logger.info("Signature does not match!");
 				return false;
@@ -383,17 +376,16 @@ public class API {
 	}
 
 	private int checkSignatures(String transactions, String type, String username)
-					throws NoSuchAlgorithmException, GeneralSecurityException, InvalidKeyException, IOException{
+			throws GeneralSecurityException, IOException {
 		String[] transactionsList = transactions.split(";");
 		int result = 0;
-		for (int i = 1; i < transactionsList.length; i++){
-			if (checkSignatureInfo(transactionsList[i], type, username)){
+		for (int i = 1; i < transactionsList.length; i++) {
+			if (checkSignatureInfo(transactionsList[i], type, username)) {
 				result++;
-			} else{
+			} else {
 				return -1;
 			}
 		}
 		return result;
 	}
-
 }

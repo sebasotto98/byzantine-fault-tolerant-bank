@@ -30,7 +30,7 @@ public class Client {
 
     private static final int MAX_REQUEST_RETRIES = 5;
 
-    private static Map<String, String> puzzles;
+    private static final Map<String, String> puzzles;
     static {
         puzzles = new HashMap<>();
         puzzles.put("How much is 2+2?", "4");
@@ -142,7 +142,6 @@ public class Client {
         faults = Integer.parseInt(args[2]);
 
         api = new API(bankNames, bankPorts, faults);
-        System.out.println("size of banks = " + bankNames.size());
 
         InetAddress bankAddress = null;
         try {

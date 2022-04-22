@@ -20,7 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.opencsv.CSVWriter;
 
-
 public class Bank {
 
 	private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getSimpleName());
@@ -33,9 +32,9 @@ public class Bank {
 	 */
 	private static final int BUFFER_SIZE = (64 * 1024 - 1) - 8 - 20;
 	private static final int SHORT_REQUEST_INTERVAL = 500;
-	private static final int MIN_INGRESS_DATA_LENGTH = 10; //TODO: TO BE DISCUSSED
-	private static final int MAX_CLIENT_LOAD = BUFFER_SIZE * 10; //TODO: TO BE DISCUSSED
-	private static final int RECENT_REQUESTS_STORED = 10; //TODO: TO BE DISCUSSED
+	private static final int MIN_INGRESS_DATA_LENGTH = 10;
+	private static final int MAX_CLIENT_LOAD = BUFFER_SIZE * 10;
+	private static final int RECENT_REQUESTS_STORED = 10;
 
 	private static final String DIGEST_ALGO = "SHA-256";
 	private static final String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
@@ -150,7 +149,7 @@ public class Bank {
 				}
 
 				//thread ends automatically
-				threads[currentThreadIndex] = new WorkerThread(currentThreadPort, clientPacket, logger, bankName, decryptCipher, msgDig, privKey, bankVars);
+				threads[currentThreadIndex] = new WorkerThread(currentThreadPort, clientPacket, bankName, decryptCipher, msgDig, privKey, bankVars);
 				threads[currentThreadIndex].start();
 
 				currentThreadIndex++;
@@ -237,7 +236,7 @@ public class Bank {
 			fileReader.close();
 			reader.close();
 		} catch (IOException e) {
-			logger.info("openAccount: Error reading requestId file.");
+			logger.info("Error reading read config file.");
 		}
 	}
 
