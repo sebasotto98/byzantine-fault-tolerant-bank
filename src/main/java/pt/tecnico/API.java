@@ -175,6 +175,9 @@ public class API {
 		
 		// send request for all replicas
 		for (int i = 0; i < bankPorts.size(); i++){
+			//socket = new DatagramSocket(clientPort);
+			//socket.setSoTimeout(SOCKET_TIMEOUT);
+
 			// Create request message
 			JsonObject requestJson = JsonParser.parseString("{}").getAsJsonObject();
 			JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
@@ -202,9 +205,10 @@ public class API {
 			socket.send(clientPacket);
 			logger.info(String.format("Request packet sent to %s:%d!%n", serverAddress, bankPorts.get(i)));
 
-			socket.close();
+			//socket.close();
 
 		}
+		socket.close();
 
 		int ackNumber = 0;
 		int numberOfTries = 0;
@@ -218,8 +222,13 @@ public class API {
 		int maxId = 0;
 		
 		// receive request based on type of operation
-		while ( ( ( !writeFinished && type.equals(ActionLabel.WRITE.getLabel()) ) || ( !readFinished && type.equals(ActionLabel.WRITE.getLabel()) ) ) &&
-				numberOfTries < bankPorts.size()){
+		// debug prints
+		System.out.println("type = " + type);
+		System.out.println("size = " + bankPorts.size());
+		while ( ( ( !writeFinished && type.equals(ActionLabel.WRITE.getLabel()) ) || 
+				  ( !readFinished  && type.equals(ActionLabel.READ.getLabel() ) ) ||
+				  ( type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) || type.equals(ActionLabel.REQUEST_MY_ID.getLabel()) ) ) 
+				&& numberOfTries < bankPorts.size()){
 
 			socket = new DatagramSocket(clientPort);
 			socket.setSoTimeout(SOCKET_TIMEOUT);
@@ -264,6 +273,7 @@ public class API {
 			encryptCipher.init(Cipher.DECRYPT_MODE, bankPublicKey);
 
 			messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from, token, Integer.toString(requestID));
+			System.out.println("message check = " + messageCheck);
 			if (!messageCheck.equals(ActionLabel.FAIL.getLabel())){
 				responseList.add(messageCheck);
 
@@ -275,11 +285,14 @@ public class API {
 					}
 					
 				} else if (type.equals(ActionLabel.READ.getLabel())){
-					String userBeingSeen = bodyText.split(",")[1];
+					System.out.println("bodyText = " + body);
+					String userBeingSeen = body.split(",")[0];
+					System.out.println("user with key = " + body.split(",")[0]);
 					int numberOfSignatures = checkSignatures(body, operation, userBeingSeen);
+					System.out.println("number of signatures = " + numberOfSignatures);
 					if (numberOfSignatures != -1){
 						ackNumber++;
-						valueID.put(numberOfSignatures, bodyText);
+						valueID.put(numberOfSignatures, body);
 					}
 					if (ackNumber >= (bankPorts.size()+faults)/2){
 						readFinished = true;
@@ -328,6 +341,7 @@ public class API {
 
 	private boolean checkSignatureInfo(String transactionString, String type, String userWithTransaction) 
 							throws NoSuchAlgorithmException, GeneralSecurityException, InvalidKeyException, IOException{
+		System.out.println("transactionString = " + transactionString);
 		String[] splited = transactionString.split(",");
 
 		String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
@@ -365,7 +379,7 @@ public class API {
 					throws NoSuchAlgorithmException, GeneralSecurityException, InvalidKeyException, IOException{
 		String[] transactionsList = transactions.split(";");
 		int result = 0;
-		for (int i = 0; i < transactionsList.length; i++){
+		for (int i = 1; i < transactionsList.length; i++){
 			if (checkSignatureInfo(transactionsList[i], type, username)){
 				result++;
 			} else{

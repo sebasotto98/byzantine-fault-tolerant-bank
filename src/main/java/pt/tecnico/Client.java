@@ -125,6 +125,7 @@ public class Client {
         faults = Integer.parseInt(args[2]);
 
         api = new API(bankNames, bankPorts, faults);
+        System.out.println("size of banks = " + bankNames.size());
 
         InetAddress bankAddress = null;
         try {
@@ -213,17 +214,22 @@ public class Client {
             switch (ch) {
                 case 1:
                     requestID = handleSendAmount(myPort, bankAddress, requestID, sc, privateKey, username);
+                    System.out.println(requestID);
                     break;
                 case 2:
                     requestID = handleCheckAccount(myPort, bankAddress, requestID, sc, privateKey, username);
+                    System.out.println(requestID);
                     break;
                 case 3:
                     requestID = handleReceiveAmount(myPort, bankAddress, requestID, sc, privateKey, username);
+                    System.out.println(requestID);
                     break;
                 case 4:
                     requestID = handleAuditAccount(myPort, bankAddress, requestID, sc, privateKey, username);
+                    System.out.println(requestID);
                     break;
                 case 5:
+                    System.out.println(requestID);
                     return;
                 default:
                     System.out.println("Please enter a valid option.");

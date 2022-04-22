@@ -515,7 +515,7 @@ public class WorkerThread extends Thread {
                 return ActionLabel.FAIL.getLabel();
             }
 
-            String[] transaction = new String[5];
+            String[] transaction = new String[6];
             transaction[0] = String.valueOf(transactionId);
             transaction[1] = new Timestamp(System.currentTimeMillis()).toString();
             transaction[2] = username;
