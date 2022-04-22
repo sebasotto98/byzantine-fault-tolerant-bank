@@ -199,17 +199,22 @@ public class WorkerThread extends Thread {
             id = getCurrentRequestIdFrom(from);
         }
 
-        int ID = Integer.parseInt(id);
+        int clientID = Integer.parseInt(id);
 
-        if (idReceived <= ID) {
-            logger.info("Message is duplicate, shall be ignored");
-            response[0] = ActionLabel.FAIL.getLabel();
-        } else if (ID == -1) {
-            logger.error("Client has no request ID");
-            response[0] = ActionLabel.FAIL.getLabel();
-        } else if (idReceived != Integer.MAX_VALUE) { //valid request id
-            synchronized (requestIdFileLock) {
-                updateRequestID(from, requestId);
+
+        if(!bodyArray[0].equals(ActionLabel.OPEN_ACCOUNT.getLabel()) &&
+                !bodyArray[0].equals(ActionLabel.REQUEST_BANK_ID.getLabel()) &&
+                !bodyArray[0].equals(ActionLabel.REQUEST_MY_ID.getLabel())){
+            if (clientID == -1) {
+                logger.error("Client has no request ID");
+                response[0] = ActionLabel.FAIL.getLabel();
+            }else if (idReceived <= clientID) {
+                logger.info("Message is duplicate, shall be ignored");
+                response[0] = ActionLabel.FAIL.getLabel();
+            }else if (idReceived != Integer.MAX_VALUE) { //valid request id
+                synchronized (requestIdFileLock) {
+                    updateRequestID(from, requestId);
+                }
             }
         }
 
@@ -234,9 +239,15 @@ public class WorkerThread extends Thread {
             writeToCSV(this.name + SIGNATURES_CSV_FILE_PATH, new String[]{from, name, mac}, true);
         }
 
-        response[0] = setResponse(bodyArray, from, signature);
+
         response[1] = from;
         response[2] = requestId;
+
+        if(bodyArray[0].equals(ActionLabel.WRITE_BACK.getLabel())){
+            response[0] =  handleWriteBackRequest(body);
+        } else {
+            response[0] = setResponse(bodyArray, from, signature);
+        }
 
         logger.info(String.format("Message to '%s', from '%s':%n%s%n", to, from, body));
         logger.info("response body = " + response[0]);
@@ -265,7 +276,7 @@ public class WorkerThread extends Thread {
         } catch (IOException e) {
             logger.info("Error reading requestId file.");
         }
-        return "-1";
+        return "-2";
     }
 
     private void updateRequestID(String username, String requestID) {
@@ -315,11 +326,13 @@ public class WorkerThread extends Thread {
         } else if (bodyArray[0].equals(ActionLabel.AUDIT_ACCOUNT.getLabel())) {
             return handleAuditAccountRequest(bodyArray[1]);
         } else if (bodyArray[0].equals(ActionLabel.REQUEST_MY_ID.getLabel())) {
+            String clientId;
             synchronized (requestIdFileLock) {
-                return getCurrentRequestIdFrom(username);
+                clientId = getCurrentRequestIdFrom(username);
             }
-        } else if (bodyArray[0].equals(ActionLabel.REQUEST_BANK_ID.getLabel())) {
-            return String.valueOf(bankRequestId);
+            String sFinal = clientId + "," + bankRequestId;
+            logger.info("FINAL ====== " + sFinal);
+            return sFinal;
         } else {
             return ActionLabel.UNKNOWN_FUNCTION.getLabel();
         }
@@ -338,6 +351,8 @@ public class WorkerThread extends Thread {
                 while ((line = reader.readLine()) != null) {
                     client = line.split(",");
                     if (client[0].equals(username)) {
+                        fileReader.close();
+                        reader.close();
                         return ActionLabel.DUPLICATE_USERNAME.getLabel();
                     }
                 }
@@ -987,5 +1002,96 @@ public class WorkerThread extends Thread {
         writeToCSV(this.name + PENDING_TRANSACTION_SIGN_FILE_PATH,body.split(","),true);
 
         return ActionLabel.SUCCESS.getLabel();
+    }
+
+    private String handleWriteBackRequest(String body){
+
+        String[] transactions = body.split(";");
+
+        String[] types = transactions[0].split(",");
+
+        if(types[1].equals(ActionLabel.AUDITING.getLabel())){
+            if(transactions.length > 1) {
+                redoClientsFile(transactions[1]);
+
+                String from = transactions[1].split(",")[0];
+
+                String path = this.name + "_csv_files/" + from + "_complete_transaction_history.csv";
+                redoTransactionsFile(transactions, from, path);
+            }
+
+        } else if(types[1].equals(ActionLabel.CHECKING.getLabel())){
+            if(transactions.length > 1) {
+                redoClientsFile(transactions[1]);
+
+                String from = transactions[1].split(",")[0];
+
+                String path = this.name + "_csv_files/" + from + "_pending_transaction_history.csv";
+                redoTransactionsFile(transactions, from, path);
+            }
+
+        } else {
+            return ActionLabel.FAIL.getLabel();
+        }
+
+        //can be any return, client will not check
+        return ActionLabel.SUCCESS.getLabel();
+    }
+
+    public void redoClientsFile(String clientEntry){
+
+        String[] clientInfos = clientEntry.split(",");
+        String clientName = clientInfos[0];
+        String availableAmount = clientInfos[1];
+        String bookAmount = clientInfos[2];
+
+        //get account information
+        String[] client;
+        List<String[]> clients = new ArrayList<>();
+        FileReader fileReader;
+        BufferedReader reader;
+        try {
+            synchronized (clientsFileLock) {
+                fileReader = new FileReader(this.name + CLIENTS_CSV_FILE_PATH);
+                reader = new BufferedReader(fileReader);
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    client = line.split(",");
+                    clients.add(client);
+                }
+                fileReader.close();
+                reader.close();
+            }
+        } catch (IOException e) {
+            logger.info("receiveAmount: Error reading clients file.");
+            return;
+        }
+
+        for(String[] c: clients){
+            if(c[0].equals(clientName)){
+                c[1] = availableAmount;
+                c[2] = bookAmount;
+                break;
+            }
+        }
+
+        boolean flag = false;
+        synchronized (clientsFileLock){
+            for(String[] c : clients) {
+                writeToCSV(this.name + CLIENTS_CSV_FILE_PATH, c, flag);
+                flag = true;
+            }
+        }
+    }
+
+    public void redoTransactionsFile(String[] transactions, String from, String path){
+        boolean flag = false;
+        synchronized (bankVars.getClientLock(from)){
+            for(int i = 2; i < transactions.length; i++){
+                String[] transaction = transactions[i].split(",");
+                writeToCSV(path, transaction, flag);
+                flag = true;
+            }
+        }
     }
 }

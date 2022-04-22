@@ -139,12 +139,14 @@ public class Bank {
 		while (true) {
 			try (DatagramSocket socket = new DatagramSocket(port)) {
 				byte[] buf = new byte[BUFFER_SIZE];
+				socket.setReceiveBufferSize(BUFFER_SIZE * 10); //10 packet buffer
 				// Receive packet
 				DatagramPacket clientPacket = new DatagramPacket(buf, buf.length);
 				socket.receive(clientPacket);
 
-				if(isSimultaneousRequest(clientPacket) || isLowIngressDataLengthRequest(clientPacket)
-						|| isHighRecentLoadRequest(clientPacket)) {
+				if( //isSimultaneousRequest(clientPacket) ||
+					isLowIngressDataLengthRequest(clientPacket) ||
+					isHighRecentLoadRequest(clientPacket)) {
 					continue;
 				}
 

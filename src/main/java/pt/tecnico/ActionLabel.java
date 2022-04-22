@@ -10,6 +10,7 @@ public enum ActionLabel {
     REQUEST_MY_ID("RequestMyId"),
     REQUEST_BANK_ID("RequestBankId"),
     SIGN("Sign"),
+    WRITE_BACK("WriteBack"),
 
     //TODO label
     TODO("TODO"),
@@ -28,6 +29,10 @@ public enum ActionLabel {
     //generic labels
     FAIL("Fail"),
     SUCCESS("Success"),
+
+    //Write Back labels
+    AUDITING("Auditing"),
+    CHECKING ("Checking"),
 
     // Api Label for algortithm
     READ("Read"),

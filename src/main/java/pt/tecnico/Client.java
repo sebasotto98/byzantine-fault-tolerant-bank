@@ -198,7 +198,7 @@ public class Client {
         if (privateKey != null) {
             try {
                 String requestedID = "-1";
-                //for (int i = 0; i < bankPorts.size(); i++) {
+
                 PublicKey bankPublicKey = null;
                 try {
                     bankPublicKey = readPublic("keys/" + bankNames.get(0) + "_public_key.der");
@@ -209,7 +209,7 @@ public class Client {
                     requestedID = api.setInitialRequestIDs(privateKey, myPort, bankPorts.get(0), bankAddress,
                             bankPublicKey, username, Integer.MAX_VALUE, bankNames.get(0));
                 }
-                //}
+
                 if (!requestedID.equals("-1") && !requestedID.equals(ActionLabel.FAIL.getLabel())) {
                     showSubmenu(sc, myPort, bankAddress, privateKey, username, Integer.parseInt(requestedID) + 1);
                 } else {
@@ -330,7 +330,7 @@ public class Client {
         } catch (GeneralSecurityException | IOException e) {
             logger.error("Error: ", e);
         }
-        return requestID + 1;
+        return requestID + 2;
     }
 
     private static int handleReceiveAmount(int myPort, InetAddress bankAddress, int requestID,
@@ -449,7 +449,7 @@ public class Client {
             logger.error("Error: ", e);
         }
 
-        return requestID + 1;
+        return requestID + 2;
     }
 
     private static int handleSendAmount(int myPort, InetAddress bankAddress, int requestID,

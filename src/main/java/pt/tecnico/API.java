@@ -2,9 +2,9 @@ package pt.tecnico;
 
 import java.io.*;
 import java.lang.invoke.MethodHandles;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.X509EncodedKeySpec;
-import java.time.Instant;
 import java.security.PublicKey;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -19,12 +19,10 @@ import java.util.Base64;
 import java.util.HashMap;
 
 import javax.crypto.Cipher;
-import javax.swing.Action;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +34,9 @@ public class API {
 	private static final int SOCKET_TIMEOUT = 5000;
 
 	private static int bankRequestID = Integer.MIN_VALUE;
+
+	private static boolean auditing = false;
+	private static boolean checking = false;
 
 	private static List<String> bankNames;
 	private static List<Integer> bankPorts;
@@ -56,19 +57,9 @@ public class API {
 									   InetAddress serverAddress, PublicKey bankPublic, String username,
 									   int requestID, String bankName)
 			throws GeneralSecurityException, IOException {
-		String[] response = new String[2];
 
-		response[0] = sendMessageAndReceiveBody(privateKey, clientPort, serverAddress,
+		return sendMessageAndReceiveBody(privateKey, clientPort, serverAddress,
 				username, ActionLabel.REQUEST_MY_ID.getLabel(), requestID, ActionLabel.REQUEST_MY_ID.getLabel());
-
-		response[1] = sendMessageAndReceiveBody(privateKey, clientPort, serverAddress,
-				username, ActionLabel.REQUEST_BANK_ID.getLabel(), requestID, ActionLabel.REQUEST_MY_ID.getLabel());
-
-		if (!response[1].equals(ActionLabel.FAIL.getLabel())) {
-			bankRequestID = Integer.parseInt(response[1]);
-		}
-
-		return response[0];
 	}
 
 	public String openAccount(PrivateKey accountPrivateKey, int clientPort,
@@ -95,6 +86,7 @@ public class API {
 							   PublicKey bankPublic, String username, int requestID, String owner)
 			throws GeneralSecurityException, IOException {
 
+		checking = true;
 		String bodyText = ActionLabel.CHECK_ACCOUNT.getLabel() + "," + owner;
 
 		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverAddress, username, bodyText, requestID, ActionLabel.READ.getLabel());
@@ -104,6 +96,8 @@ public class API {
 								InetAddress serverAddress, String bankName,
 								PublicKey bankPublic, String username, int requestID, int transactionId)
 			throws GeneralSecurityException, IOException {
+
+
 		String bodyText = ActionLabel.RECEIVE_AMOUNT.getLabel() + "," + transactionId;
 
 		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverAddress, username, bodyText, requestID, ActionLabel.WRITE.getLabel());
@@ -114,6 +108,7 @@ public class API {
 							   PublicKey bankPublic, String username, int requestID, String owner)
 			throws GeneralSecurityException, IOException {
 
+		auditing = true;
 		String bodyText = ActionLabel.AUDIT_ACCOUNT.getLabel() + "," + owner;
 
 		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverAddress, username, bodyText, requestID, ActionLabel.READ.getLabel());
@@ -157,8 +152,6 @@ public class API {
 		return result;
 	}
 
-
-	// trying
 	private String sendMessageAndReceiveBody(PrivateKey accountPrivateKey, int clientPort,
 											 InetAddress serverAddress, String username,
 											 String bodyText, int requestID, String type)
@@ -176,11 +169,9 @@ public class API {
 
 		DatagramSocket socket = new DatagramSocket(clientPort);
 		socket.setSoTimeout(SOCKET_TIMEOUT);
-
+		socket.setReceiveBufferSize(BUFFER_SIZE * 10); //10 packets in the buffer
 		// send request for all replicas
 		for (int i = 0; i < bankPorts.size(); i++) {
-			//socket = new DatagramSocket(clientPort);
-			//socket.setSoTimeout(SOCKET_TIMEOUT);
 
 			// Create request message
 			JsonObject requestJson = JsonParser.parseString("{}").getAsJsonObject();
@@ -190,8 +181,9 @@ public class API {
 			infoJson.addProperty("body", bodyText);
 			infoJson.addProperty("requestId", Integer.toString(requestID));
 
-			String verificationString = bankNames.get(i) + "," + username + "," + Integer.toString(requestID) + "," + bodyText;
-			String signature = Base64.getEncoder().encodeToString(signCipher.doFinal(verificationString.getBytes()));
+			String verificationString = bankNames.get(i) + "," + username + "," + requestID + "," + bodyText;
+			msgDig.update(verificationString.getBytes());
+			String signature = Base64.getEncoder().encodeToString(signCipher.doFinal(msgDig.digest()));
 			infoJson.addProperty("signature", signature);
 
 			requestJson.add("info", infoJson);
@@ -208,37 +200,31 @@ public class API {
 			DatagramPacket clientPacket = new DatagramPacket(clientData, clientData.length, serverAddress, bankPorts.get(i));
 			socket.send(clientPacket);
 			logger.info(String.format("Request packet sent to %s:%d!%n", serverAddress, bankPorts.get(i)));
-
-			//socket.close();
-
 		}
-		socket.close();
 
 		int ackNumber = 0;
 		int numberOfTries = 0;
 		List<String> responseList = new ArrayList<>();
+		List<String> openAccountResponseList = new ArrayList<>();
 		List<Integer> idList = new ArrayList<>();
 		boolean writeFinished = false;
 		String writeFinalAnswer = null;
 		boolean readFinished = false;
 		HashMap<Integer, String> valueID = new HashMap<>();
 		String operation = bodyText.split(",")[0];
-		int maxId = 0;
-
+		int maxId = -1;
+		int maxIdBank = -1;
 		// receive request based on type of operation
 		while (((!writeFinished && type.equals(ActionLabel.WRITE.getLabel())) ||
 				(!readFinished && type.equals(ActionLabel.READ.getLabel())) ||
 				(type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) || type.equals(ActionLabel.REQUEST_MY_ID.getLabel())))
 				&& numberOfTries < bankPorts.size()) {
 
-			socket = new DatagramSocket(clientPort);
-			socket.setSoTimeout(SOCKET_TIMEOUT);
-
 			// Receive response
 			byte[] serverData = new byte[BUFFER_SIZE];
 			DatagramPacket serverPacket = new DatagramPacket(serverData, serverData.length);
 			logger.info("Wait for response packet...");
-
+			socket.setSoTimeout(SOCKET_TIMEOUT);
 			try {
 				socket.receive(serverPacket);
 			} catch (SocketTimeoutException e) {
@@ -298,32 +284,55 @@ public class API {
 						readFinished = true;
 					}
 				} else if (type.equals(ActionLabel.REQUEST_MY_ID.getLabel())) {
-					if (Integer.parseInt(body) > maxId) {
-						maxId = Integer.parseInt(body);
+					String[] ids = body.split(",");
+					if (!ids[0].equals(ActionLabel.FAIL.getLabel()) && Integer.parseInt(ids[0]) > maxId) {
+						maxId = Integer.parseInt(ids[0]);
+					}
+					if (!ids[1].equals(ActionLabel.FAIL.getLabel()) && Integer.parseInt(ids[1]) > maxIdBank){
+						maxIdBank = Integer.parseInt(ids[1]);
 					}
 				}
 			}
-
-			socket.close();
-			logger.info("Socket closed");
+			if(type.equals(ActionLabel.OPEN_ACCOUNT.getLabel())){
+				openAccountResponseList.add(body);
+			}
 			numberOfTries++;
-
 		}
+		logger.info("Socket closed");
+		socket.close();
 
 		if (type.equals(ActionLabel.WRITE.getLabel()) && writeFinished) {
 			return writeFinalAnswer;
 		} else if (type.equals(ActionLabel.READ.getLabel()) && readFinished) {
 			Integer key = Collections.max(valueID.keySet());
+			String writeBack = ActionLabel.WRITE_BACK.getLabel() + ",";
+			if(auditing){
+				writeBack = writeBack + ActionLabel.AUDITING.getLabel() + ";";
+			} else if(checking){
+				writeBack = writeBack + ActionLabel.CHECKING.getLabel() + ";";
+			}
+			writeBack = writeBack + valueID.get(key);
+			sendMessageAndReceiveBody(accountPrivateKey,clientPort, serverAddress, username, writeBack, requestID + 1, ActionLabel.WRITE.getLabel());
+
 			return valueID.get(key);
 		} else if (type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) && responseList.size() == numberOfTries) {
-			return ActionLabel.ACCOUNT_CREATED.getLabel();
+			if (Collections.frequency(openAccountResponseList, ActionLabel.DUPLICATE_USERNAME.getLabel()) > faults) {
+				return ActionLabel.DUPLICATE_USERNAME.getLabel();
+			} else if (Collections.frequency(openAccountResponseList, ActionLabel.FAIL.getLabel()) > faults) {
+				return ActionLabel.FAIL.getLabel();
+			} else{
+				return ActionLabel.ACCOUNT_CREATED.getLabel();
+			}
 		} else if (type.equals(ActionLabel.REQUEST_MY_ID.getLabel()) && responseList.size() == numberOfTries) {
+			bankRequestID = maxIdBank;
+			if(maxId == -1){
+				return ActionLabel.FAIL.getLabel();
+			}
 			return Integer.toString(maxId);
 		} else {
 			return ActionLabel.FAIL.getLabel();
 		}
 	}
-
 
 	public static PublicKey readPublic(String publicKeyPath) throws GeneralSecurityException, IOException {
 		logger.info("Reading public key from file " + publicKeyPath + " ...");
