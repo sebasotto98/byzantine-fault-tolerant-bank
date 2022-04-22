@@ -89,7 +89,7 @@ public class BankTest {
 
 
     @Test
-    public void manipulatedMessage_detected_success() throws GeneralSecurityException, IOException {
+    public void TestManipulatedMessage_detected_success() throws GeneralSecurityException, IOException {
         String DIGEST_ALGO = "SHA-256";
 	    String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
 

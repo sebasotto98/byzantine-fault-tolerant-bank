@@ -89,7 +89,7 @@ public class APITest {
     }
 
     @Test
-    public void openAccount_accountCreated_success() {
+    public void TestOpenAccount_accountCreated_success() {
 
         BankHelper bankHelper = new BankHelper(bankNames.get(0));
         bankThread = new Thread(bankHelper);
@@ -106,7 +106,7 @@ public class APITest {
     }
 
     @Test
-    public void openAccount_accountCreated_failure() {
+    public void TestOpenAccount_accountCreated_failure() {
 
         try {
             bankResponse = api.openAccount(privateKey, port, bankPorts.get(0), bankAddress, bankPublicKey, username, -1, bankNames.get(0));
