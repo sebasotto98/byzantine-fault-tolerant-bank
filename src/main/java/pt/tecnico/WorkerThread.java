@@ -148,7 +148,7 @@ public class WorkerThread extends Thread {
 
         // Parse JSON and extract arguments
         JsonObject requestJson = JsonParser.parseString(clientText).getAsJsonObject();
-        String from, body, to, mac, requestId;
+        String from, body, to, mac, requestId, signature;
 
         JsonObject infoClientJson = requestJson.getAsJsonObject("info");
         to = infoClientJson.get("to").getAsString();
@@ -156,6 +156,7 @@ public class WorkerThread extends Thread {
         body = infoClientJson.get("body").getAsString();
         requestId = infoClientJson.get("requestId").getAsString();
         mac = requestJson.get("MAC").getAsString();
+        signature = infoClientJson.get("signature").getAsString();
 
         String[] bodyArray = body.split(",");
 
@@ -207,7 +208,7 @@ public class WorkerThread extends Thread {
             writeToCSV(this.NAME + SIGNATURES_CSV_FILE_PATH, new String[]{from, NAME, mac}, true);
         }
 
-        response[0] = setResponse(bodyArray, from);
+        response[0] = setResponse(bodyArray, from, signature);
         response[1] = from;
         response[2] = requestId;
 
@@ -274,17 +275,17 @@ public class WorkerThread extends Thread {
         }
     }
 
-    private String setResponse(String[] bodyArray, String username)
+    private String setResponse(String[] bodyArray, String username, String signature)
             throws IOException, GeneralSecurityException {
         //bodyArray -> 1-amount, 2-receiver
         if (bodyArray[0].equals(ActionLabel.OPEN_ACCOUNT.getLabel())) {
             return handleOpenAccount(username);
         } else if (bodyArray[0].equals(ActionLabel.SEND_AMOUNT.getLabel())) {
-            return handleSendAmountRequest(username, bodyArray[1], bodyArray[2]);
+            return handleSendAmountRequest(username, bodyArray[1], bodyArray[2], signature);
         } else if (bodyArray[0].equals(ActionLabel.CHECK_ACCOUNT.getLabel())) {
             return handleCheckAccountRequest(bodyArray[1]);
         } else if (bodyArray[0].equals(ActionLabel.RECEIVE_AMOUNT.getLabel())) {
-            return handleReceiveAmountRequest(username, bodyArray[1]);
+            return handleReceiveAmountRequest(username, bodyArray[1], signature);
         } else if (bodyArray[0].equals(ActionLabel.AUDIT_ACCOUNT.getLabel())) {
             return handleAuditAccountRequest(bodyArray[1]);
         } else if (bodyArray[0].equals(ActionLabel.REQUEST_MY_ID.getLabel())) {
@@ -448,7 +449,7 @@ public class WorkerThread extends Thread {
         }
     }
 
-    private String handleSendAmountRequest(String username, String amount, String receiver) throws GeneralSecurityException, IOException {
+    private String handleSendAmountRequest(String username, String amount, String receiver, String signature) throws GeneralSecurityException, IOException {
         //get account information
         String[] client;
         List<String[]> clients = new ArrayList<>();
@@ -520,22 +521,23 @@ public class WorkerThread extends Thread {
             transaction[2] = username;
             transaction[3] = receiver;
             transaction[4] = amount;
+            transaction[5] = signature;
 
             //send toSign request
-            String toSign = transaction[0] + "," +
-                    receiver + "," +
-                    username + "," +
-                    amount + ",pending";
+            //String toSign = transaction[0] + "," +
+            //        receiver + "," +
+            //        username + "," +
+            //        amount + ",pending";
 
-            requestSign(toSign, username);
+            //requestSign(toSign, username);
 
-            String r = receiveAndCheckRequestSign();
+            //String r = receiveAndCheckRequestSign();
 
-            if(r.equals(ActionLabel.FAIL.getLabel())){
-                return r;
-            }
+            //if(r.equals(ActionLabel.FAIL.getLabel())){
+            //    return r;
+            //}
 
-            writeToCSV(NAME + PENDING_TRANSACTION_SIGN_FILE_PATH, toSign.split(","),true);
+            //writeToCSV(NAME + PENDING_TRANSACTION_SIGN_FILE_PATH, toSign.split(","),true);
 
             bankVars.incrementTransactionId();
             synchronized (bankVars.getClientLock(receiver)) {
@@ -551,7 +553,7 @@ public class WorkerThread extends Thread {
         }
     }
 
-    private String handleReceiveAmountRequest(String username, String id) {
+    private String handleReceiveAmountRequest(String username, String id, String signature) {
 
         //get account information
         String[] client;
@@ -615,7 +617,7 @@ public class WorkerThread extends Thread {
             System.out.print("c[0]:");
             System.out.println("|" + t[0] + "|");
             if (t[0].equals(id)) {
-                //c -> 0-id, 1-timestamp, 2-sender 3-receiver 4-amount
+                //c -> 0-id, 1-timestamp, 2-sender 3-receiver 4-amount 5-signature
                 //check if client is receiver
                 if (t[3].equals(username)) {
                     transactionFound = true;
@@ -732,8 +734,12 @@ public class WorkerThread extends Thread {
                         }
                     }
 
-                    writeToCSV(receiverTransactionsFile, receiverTransaction, true);
                     writeToCSV(senderCompletedTransactionsFile, receiverTransaction, true);
+                    
+                    // alter signature to that of this transaction
+                    receiverTransaction[5] = signature; 
+                    writeToCSV(receiverTransactionsFile, receiverTransaction, true);
+                    
                 }
             }
 

@@ -52,11 +52,11 @@ public class API {
 			throws GeneralSecurityException, IOException {
 		String[] response = new String[2];
 
-		response[0] = sendMessageAndReceiveBody(privateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
-				username, ActionLabel.REQUEST_MY_ID.getLabel(), requestID);
+		response[0] = sendMessageAndReceiveBody(privateKey, clientPort, serverAddress,
+				username, ActionLabel.REQUEST_MY_ID.getLabel(), requestID, ActionLabel.REQUEST_MY_ID.getLabel());
 
-		response[1] = sendMessageAndReceiveBody(privateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
-				username, ActionLabel.REQUEST_BANK_ID.getLabel(), requestID);
+		response[1] = sendMessageAndReceiveBody(privateKey, clientPort, serverAddress,
+				username, ActionLabel.REQUEST_BANK_ID.getLabel(), requestID, ActionLabel.REQUEST_MY_ID.getLabel());
 
 		if (!response[1].equals(ActionLabel.FAIL.getLabel())) {
 			bankRequestID = Integer.parseInt(response[1]);
@@ -70,8 +70,8 @@ public class API {
 							  PublicKey bankPublic, String username, int requestID, String bankName)
 			throws GeneralSecurityException, IOException {
 
-		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic,
-				username, ActionLabel.OPEN_ACCOUNT.getLabel(), requestID);
+		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverAddress,
+				username, ActionLabel.OPEN_ACCOUNT.getLabel(), requestID, ActionLabel.OPEN_ACCOUNT.getLabel());
 	}
 
 	public String sendAmount(PrivateKey sourcePrivateKey, int clientPort,
@@ -81,7 +81,7 @@ public class API {
 
 		String bodyText = ActionLabel.SEND_AMOUNT.getLabel() + "," + amount + "," + usernameDest;
 
-		return sendMessageAndReceiveBody(sourcePrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic, username, bodyText, requestID);
+		return sendMessageAndReceiveBody(sourcePrivateKey, clientPort, serverAddress, username, bodyText, requestID, ActionLabel.WRITE.getLabel());
 	}
 
 	public String checkAccount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
@@ -91,7 +91,7 @@ public class API {
 
 		String bodyText = ActionLabel.CHECK_ACCOUNT.getLabel() + "," + owner;
 
-		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic, username, bodyText, requestID);
+		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverAddress, username, bodyText, requestID, ActionLabel.READ.getLabel());
 	}
 
 	public String receiveAmount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
@@ -100,7 +100,7 @@ public class API {
 			throws GeneralSecurityException, IOException {
 		String bodyText = ActionLabel.RECEIVE_AMOUNT.getLabel() + "," + transactionId;
 
-		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic, username, bodyText, requestID);
+		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverAddress, username, bodyText, requestID, ActionLabel.WRITE.getLabel());
 	}
 
 	public String auditAccount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
@@ -110,7 +110,7 @@ public class API {
 
 		String bodyText = ActionLabel.AUDIT_ACCOUNT.getLabel() + "," + owner;
 
-		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverPort, serverAddress, bankName, bankPublic, username, bodyText, requestID);
+		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverAddress, username, bodyText, requestID, ActionLabel.READ.getLabel());
 	}
 
 	private String checkMessage(Cipher encryptCipher, String mac, MessageDigest msgDig, JsonObject infoJson,
@@ -151,93 +151,7 @@ public class API {
 		return result;
 	}
 
-	private String sendMessageAndReceiveBody(PrivateKey accountPrivateKey, int clientPort,
-											 int serverPort, InetAddress serverAddress, String bankName, PublicKey bankPublic, String username,
-											 String bodyText, int requestID)
-			throws GeneralSecurityException, IOException {
-		String DIGEST_ALGO = "SHA-256";
-		MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
 
-		String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
-		Cipher encryptCipher = Cipher.getInstance(CIPHER_ALGO);
-
-		Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
-		signCipher.init(Cipher.ENCRYPT_MODE, accountPrivateKey);
-
-		DatagramSocket socket = new DatagramSocket(clientPort);
-		socket.setSoTimeout(SOCKET_TIMEOUT);
-		// Create request message
-		JsonObject requestJson = JsonParser.parseString("{}").getAsJsonObject();
-
-		JsonObject infoJson = JsonParser.parseString("{}").getAsJsonObject();
-		infoJson.addProperty("to", bankName);
-		infoJson.addProperty("from", username);
-		infoJson.addProperty("body", bodyText);
-		infoJson.addProperty("requestId", Integer.toString(requestID));
-
-		requestJson.add("info", infoJson);
-
-		msgDig.update(infoJson.toString().getBytes());
-		String macString = Base64.getEncoder().encodeToString(signCipher.doFinal(msgDig.digest()));
-		requestJson.addProperty("MAC", macString);
-
-		logger.info("Request message: " + requestJson);
-
-		// Send request
-		byte[] clientData = requestJson.toString().getBytes();
-		logger.info(String.format("%d bytes %n", clientData.length));
-		DatagramPacket clientPacket = new DatagramPacket(clientData, clientData.length, serverAddress, serverPort);
-		socket.send(clientPacket);
-		logger.info(String.format("Request packet sent to %s:%d!%n", serverAddress, serverPort));
-
-		// Receive response
-		byte[] serverData = new byte[BUFFER_SIZE];
-		DatagramPacket serverPacket = new DatagramPacket(serverData, serverData.length);
-		logger.info("Wait for response packet...");
-
-		try {
-			socket.receive(serverPacket);
-		} catch (SocketTimeoutException e) {
-			logger.info("Socket timeout. Failed request!");
-			socket.close();
-			logger.info("Socket closed");
-			return ActionLabel.FAIL.getLabel();
-		}
-
-		// Convert response to string
-		String serverText = new String(serverPacket.getData(), 0, serverPacket.getLength());
-		logger.info("Received response: " + serverText);
-
-		// Parse JSON and extract arguments
-		JsonObject responseJson = JsonParser.parseString(serverText).getAsJsonObject();
-		JsonObject infoBankJson;
-		String from, body, to, mac, requestIdBank, timestamp, token;
-
-		infoBankJson = responseJson.getAsJsonObject("info");
-		from = infoBankJson.get("from").getAsString();
-		to = infoBankJson.get("to").getAsString();
-		body = infoBankJson.get("body").getAsString();
-		requestIdBank = infoBankJson.get("requestId").getAsString();
-		token = infoBankJson.get("token").getAsString();
-
-		mac = responseJson.get("MAC").getAsString();
-
-		logger.info(String.format("Received packet from %s:%d!%n", serverPacket.getAddress(), serverPacket.getPort()));
-		logger.info(String.format("%d bytes %n", serverPacket.getLength()));
-
-		encryptCipher.init(Cipher.DECRYPT_MODE, bankPublic);
-
-		String messageCheck = checkMessage(encryptCipher, mac, msgDig, infoBankJson, requestIdBank, from, token, Integer.toString(requestID));
-
-		socket.close();
-		logger.info("Socket closed");
-
-		if (messageCheck.equals(ActionLabel.FAIL.getLabel())) {
-			return messageCheck;
-		} else {
-			return body;
-		}
-	}
 
 
 	// trying 
@@ -269,6 +183,10 @@ public class API {
 			infoJson.addProperty("body", bodyText);
 			infoJson.addProperty("requestId", Integer.toString(requestID));
 
+			String verificationString = bankNames.get(i) + "," + username + "," + Integer.toString(requestID) + "," + bodyText;
+			String signature = Base64.getEncoder().encodeToString(signCipher.doFinal(verificationString.getBytes()));
+			infoJson.addProperty("signature", signature);
+
 			requestJson.add("info", infoJson);
 
 			msgDig.update(infoJson.toString().getBytes());
@@ -295,10 +213,12 @@ public class API {
 		boolean writeFinished = false;
 		String writeFinalAnswer = null;
 		boolean readFinished = false;
-		List<Pair<String, String>> listPair = new ArrayList<Pair<String, String>>();
+		HashMap<Integer, String> valueID = new HashMap<Integer, String>();
+		String operation = bodyText.split(",")[0];
+		int maxId = 0;
+		
 		// receive request based on type of operation
-		while ( ( !writeFinished && type.equals(ActionLabel.WRITE.getLabel()) ) || ( !readFinished && type.equals(ActionLabel.WRITE.getLabel()) ) &&
-				( ackNumber < bankPorts.size()            && type.equals(ActionLabel.OPEN_ACCOUNT.getLabel())  )  ||
+		while ( ( ( !writeFinished && type.equals(ActionLabel.WRITE.getLabel()) ) || ( !readFinished && type.equals(ActionLabel.WRITE.getLabel()) ) ) &&
 				numberOfTries < bankPorts.size()){
 
 			socket = new DatagramSocket(clientPort);
@@ -355,10 +275,18 @@ public class API {
 					}
 					
 				} else if (type.equals(ActionLabel.READ.getLabel())){
-					ackNumber++;
-					// add Pair (body, requestId) to dictionary
+					String userBeingSeen = bodyText.split(",")[1];
+					int numberOfSignatures = checkSignatures(body, operation, userBeingSeen);
+					if (numberOfSignatures != -1){
+						ackNumber++;
+						valueID.put(numberOfSignatures, bodyText);
+					}
 					if (ackNumber >= (bankPorts.size()+faults)/2){
 						readFinished = true;
+					}
+				} else if (type.equals(ActionLabel.REQUEST_MY_ID.getLabel())){
+					if (Integer.parseInt(body) > maxId){
+						maxId = Integer.parseInt(body);
 					}
 				}
 			}
@@ -372,9 +300,12 @@ public class API {
 		if (type.equals(ActionLabel.WRITE.getLabel()) && writeFinished){
 			return writeFinalAnswer;
 		} else if (type.equals(ActionLabel.READ.getLabel()) && readFinished){
-			return ActionLabel.TODO.getLabel();									// TODO escolher a resposta com o requestID mais alto
+			Integer key = Collections.max(valueID.keySet());
+			return valueID.get(key);
 		} else if (type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) && responseList.size() == numberOfTries){
 			return ActionLabel.ACCOUNT_CREATED.getLabel();
+		} else if (type.equals(ActionLabel.REQUEST_MY_ID.getLabel()) && responseList.size() == numberOfTries){
+			return Integer.toString(maxId);
 		} else {
 			return ActionLabel.FAIL.getLabel();
 		}
@@ -394,4 +325,54 @@ public class API {
 
 		return pub;
 	}
+
+	private boolean checkSignatureInfo(String transactionString, String type, String userWithTransaction) 
+							throws NoSuchAlgorithmException, GeneralSecurityException, InvalidKeyException, IOException{
+		String[] splited = transactionString.split(",");
+
+		String CIPHER_ALGO = "RSA/ECB/PKCS1Padding";
+		Cipher encryptCipher = Cipher.getInstance(CIPHER_ALGO);
+		
+		int size = splited.length;
+		String sign;
+
+		if (type.equals(ActionLabel.AUDIT_ACCOUNT.getLabel())){
+
+			PublicKey usernameKey = readPublic("keys/" + userWithTransaction + "_public_key.der");
+			encryptCipher.init(Cipher.DECRYPT_MODE, usernameKey);
+
+			try {
+				sign = Base64.getEncoder().encodeToString(encryptCipher.doFinal(Base64.getDecoder().decode(splited[size-1])));
+			} catch (Exception e) {
+				logger.info("Signature does not match!");
+				return false;
+			}
+		} else {
+			PublicKey usernameKey = readPublic("keys/" + splited[2] + "_public_key.der");
+			encryptCipher.init(Cipher.DECRYPT_MODE, usernameKey);
+
+			try {
+				sign = Base64.getEncoder().encodeToString(encryptCipher.doFinal(Base64.getDecoder().decode(splited[size-1])));
+			} catch (Exception e) {
+				logger.info("Signature does not match!");
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private int checkSignatures(String transactions, String type, String username)
+					throws NoSuchAlgorithmException, GeneralSecurityException, InvalidKeyException, IOException{
+		String[] transactionsList = transactions.split(";");
+		int result = 0;
+		for (int i = 0; i < transactionsList.length; i++){
+			if (checkSignatureInfo(transactionsList[i], type, username)){
+				result++;
+			} else{
+				return -1;
+			}
+		}
+		return result;
+	}
+
 }

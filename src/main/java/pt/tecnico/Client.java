@@ -161,18 +161,18 @@ public class Client {
                     if (privateKey != null) {
                         try {
                             String requestedID = "-1";
-                            for (int i = 0; i < bankPorts.size(); i++) {
+                            //for (int i = 0; i < bankPorts.size(); i++) {
                                 PublicKey bankPublicKey = null;
                                 try {
-                                    bankPublicKey = readPublic("keys/" + bankNames.get(i) + "_public_key.der");
+                                    bankPublicKey = readPublic("keys/" + bankNames.get(0) + "_public_key.der");
                                 } catch (GeneralSecurityException | IOException e) {
                                     logger.error("Error: ", e);
                                 }
                                 if (bankPublicKey != null) {
-                                    requestedID = api.setInitialRequestIDs(privateKey, myPort, bankPorts.get(i), bankAddress,
-                                            bankPublicKey, username, Integer.MAX_VALUE, bankNames.get(i));
+                                    requestedID = api.setInitialRequestIDs(privateKey, myPort, bankPorts.get(0), bankAddress,
+                                            bankPublicKey, username, Integer.MAX_VALUE, bankNames.get(0));
                                 }
-                            }
+                            //}
                             if (!requestedID.equals("-1") && !requestedID.equals(ActionLabel.FAIL.getLabel())) {
                                 showSubmenu(sc, myPort, bankAddress, privateKey, username, Integer.parseInt(requestedID) + 1);
                             } else {
@@ -241,12 +241,12 @@ public class Client {
 
             PublicKey bankPublicKey = null;
             try {
-                bankPublicKey = readPublic("keys/" + bankNames.get(h) + "_public_key.der");
+                bankPublicKey = readPublic("keys/" + bankNames.get(0) + "_public_key.der");
             } catch (GeneralSecurityException | IOException e) {
                 logger.error("Error: ", e);
             }
             do {
-                bankResponse = api.auditAccount(privateKey, myPort, bankPorts.get(h), bankAddress, bankNames.get(h), bankPublicKey, username, requestID, owner);
+                bankResponse = api.auditAccount(privateKey, myPort, bankPorts.get(0), bankAddress, bankNames.get(0), bankPublicKey, username, requestID, owner);
                 if (bankResponse != null) {
                     if (bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
                         System.out.println("Owner's account not found!");
@@ -305,12 +305,12 @@ public class Client {
 
             PublicKey bankPublicKey = null;
             try {
-                bankPublicKey = readPublic("keys/" + bankNames.get(i) + "_public_key.der");
+                bankPublicKey = readPublic("keys/" + bankNames.get(0) + "_public_key.der");
             } catch (GeneralSecurityException | IOException e) {
                 logger.error("Error: ", e);
             }
             do {
-                bankResponse = api.receiveAmount(privateKey, myPort, bankPorts.get(i), bankAddress, bankNames.get(i), bankPublicKey, username, requestID, transactionId);
+                bankResponse = api.receiveAmount(privateKey, myPort, bankPorts.get(0), bankAddress, bankNames.get(0), bankPublicKey, username, requestID, transactionId);
                 if (bankResponse != null) {
                     if (bankResponse.equals(ActionLabel.COMPLETED_TRANSACTION.getLabel())) {
                         System.out.println("Transaction completed and money transfered!");
@@ -348,12 +348,12 @@ public class Client {
 
             PublicKey bankPublicKey = null;
             try {
-                bankPublicKey = readPublic("keys/" + bankNames.get(h) + "_public_key.der");
+                bankPublicKey = readPublic("keys/" + bankNames.get(0) + "_public_key.der");
             } catch (GeneralSecurityException | IOException e) {
                 logger.error("Error: ", e);
             }
             do {
-                bankResponse = api.checkAccount(privateKey, myPort, bankPorts.get(h), bankAddress, bankNames.get(h), bankPublicKey, username, requestID, owner);
+                bankResponse = api.checkAccount(privateKey, myPort, bankPorts.get(0), bankAddress, bankNames.get(0), bankPublicKey, username, requestID, owner);
                 if (bankResponse != null) {
                     if (bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
                         System.out.println("Owner's account not found!");
@@ -417,12 +417,12 @@ public class Client {
 
             PublicKey bankPublicKey = null;
             try {
-                bankPublicKey = readPublic("keys/" + bankNames.get(i) + "_public_key.der");
+                bankPublicKey = readPublic("keys/" + bankNames.get(0) + "_public_key.der");
             } catch (GeneralSecurityException | IOException e) {
                 logger.error("Error: ", e);
             }
             do {
-                bankResponse = api.sendAmount(privateKey, myPort, bankPorts.get(i), bankAddress, bankNames.get(i), bankPublicKey, requestID, username, amount, usernameDest);
+                bankResponse = api.sendAmount(privateKey, myPort, bankPorts.get(0), bankAddress, bankNames.get(0), bankPublicKey, requestID, username, amount, usernameDest);
                 if (bankResponse != null) {
                     if (bankResponse.equals(ActionLabel.PENDING_TRANSACTION.getLabel())) {
                         System.out.println("Transaction waiting for receiver approval!");
@@ -471,12 +471,12 @@ public class Client {
 
             PublicKey bankPublicKey = null;
             try {
-                bankPublicKey = readPublic("keys/" + bankNames.get(i) + "_public_key.der");
+                bankPublicKey = readPublic("keys/" + bankNames.get(0) + "_public_key.der");
             } catch (GeneralSecurityException | IOException e) {
                 logger.error("Error: ", e);
             }
             do {
-                bankResponse = api.openAccount(privateKey, myPort, bankPorts.get(i), bankAddress, bankPublicKey, username, -1, bankNames.get(i));
+                bankResponse = api.openAccount(privateKey, myPort, bankPorts.get(0), bankAddress, bankPublicKey, username, -1, bankNames.get(0));
                 if (bankResponse != null) {
                     if (bankResponse.equals(ActionLabel.ACCOUNT_CREATED.getLabel())) {
                         System.out.println("Account opened successfully!");
