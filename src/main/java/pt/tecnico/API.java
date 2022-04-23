@@ -308,8 +308,10 @@ public class API {
 			String writeBack = ActionLabel.WRITE_BACK.getLabel() + ",";
 			if(auditing){
 				writeBack = writeBack + ActionLabel.AUDITING.getLabel() + ";";
+				auditing = false;
 			} else if(checking){
 				writeBack = writeBack + ActionLabel.CHECKING.getLabel() + ";";
+				checking = false;
 			}
 			writeBack = writeBack + valueID.get(key);
 			sendMessageAndReceiveBody(accountPrivateKey,clientPort, serverAddress, username, writeBack, requestID + 1, ActionLabel.WRITE.getLabel());
