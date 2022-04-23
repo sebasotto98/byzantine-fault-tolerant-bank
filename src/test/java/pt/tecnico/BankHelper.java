@@ -1,9 +1,8 @@
 package pt.tecnico;
 
-
 public class BankHelper implements Runnable {
 
-    private String name;
+    private final String name;
 
     public BankHelper(String name) {
         this.name = name;

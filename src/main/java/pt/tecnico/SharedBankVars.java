@@ -41,7 +41,7 @@ public class SharedBankVars {
         return signaturesFileLock;
     }
 
-    public Object getPendingTransactionsSignatureFileLock(){
+    public Object getPendingTransactionsSignatureFileLock() {
         return pendingTransactionsSignatureFileLock;
     }
 

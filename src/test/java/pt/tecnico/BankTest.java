@@ -8,16 +8,11 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.security.MessageDigest;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import javax.crypto.Cipher;
@@ -37,26 +32,15 @@ public class BankTest {
         bankPorts = new ArrayList<>();
         bankPorts.add(5000);
     }
-    private InetAddress bankAddress;
+
     private final String username = "client1";
     private PrivateKey privateKey;
-    private PublicKey publicKey;
-    private PublicKey bankPublicKey;
 
     @BeforeEach
     public void setUp() {
-        try {
-            bankAddress = InetAddress.getLocalHost();
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
-
         String privateKeyPath = "keys/" + username + "_private_key.der";
-        String publicKeyPath = "keys/" + username + "_public_key.der";
         try {
             privateKey = Client.readPrivate(privateKeyPath);
-            publicKey = Client.readPublic(publicKeyPath);
-            bankPublicKey = Client.readPublic("keys/" + bankNames.get(0) + "_public_key.der");
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
         }
@@ -66,6 +50,9 @@ public class BankTest {
     public void tearDown() {
         try {
             new FileOutputStream(bankNames.get(0) + "_csv_files/clients.csv").close();
+            new FileOutputStream(bankNames.get(0) + "_csv_files/signatures.csv").close();
+            new FileOutputStream(bankNames.get(0) + "_csv_files/transactionId.csv").close();
+            new FileOutputStream(bankNames.get(0) + "_csv_files/requestIDs.csv").close();
             File client1CompleteTransactionHistoryFile = new File(bankNames.get(0) + "_csv_files/client1_complete_transaction_history.csv");
             if(client1CompleteTransactionHistoryFile.exists()) {
                 client1CompleteTransactionHistoryFile.delete();
@@ -106,11 +93,13 @@ public class BankTest {
         infoJson.addProperty("to", bankNames.get(0));
 		infoJson.addProperty("from", username);
         String bodyText = "mock body text";
-        int requestID = 20;
         infoJson.addProperty("body", bodyText);
+
+        int requestID = 10000;
+        WorkerThread.writeToCSV(bankNames.get(0) + "_csv_files/requestIDs.csv", new String[]{username, String.valueOf(requestID-1)}, true);
         infoJson.addProperty("requestId", Integer.toString(requestID));
 
-        String verificationString = bankNames.get(0) + "," + username + "," + Integer.toString(requestID) + "," + bodyText;
+        String verificationString = bankNames.get(0) + "," + username + "," + requestID + "," + bodyText;
         String signature = Base64.getEncoder().encodeToString(signCipher.doFinal(verificationString.getBytes()));
         infoJson.addProperty("signature", signature);
 
@@ -133,4 +122,3 @@ public class BankTest {
     }
     
 }
-

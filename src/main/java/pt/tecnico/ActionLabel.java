@@ -1,7 +1,7 @@
 package pt.tecnico;
 
 public enum ActionLabel {
-    //request labels
+    //Request labels
     OPEN_ACCOUNT("OpenAccount"),
     SEND_AMOUNT("SendAmount"),
     CHECK_ACCOUNT("CheckAccount"),
@@ -15,7 +15,7 @@ public enum ActionLabel {
     //TODO label
     TODO("TODO"),
 
-    //response labels
+    //Response labels
     ACCOUNT_CREATED("AccountCreated"),
     DUPLICATE_USERNAME("DuplicateUsername"),
     PENDING_TRANSACTION("PendingTransaction"),
@@ -24,24 +24,21 @@ public enum ActionLabel {
     CLIENT_NOT_FOUND("ClientNotFound"),
     CLIENT_NOT_RECEIVER("ClientNotReceiver"),
     COMPLETED_TRANSACTION("CompletedTransaction"),
-    SIGNED("Signed"),
 
-    //generic labels
+    //Generic labels
     FAIL("Fail"),
     SUCCESS("Success"),
 
     //Write Back labels
     AUDITING("Auditing"),
-    CHECKING ("Checking"),
+    CHECKING("Checking"),
 
-    // Api Label for algortithm
+    //Algorithm labels
     READ("Read"),
     WRITE("Write"),
 
-    //other labels
+    //Other labels
     UNKNOWN_FUNCTION("UNKNOWN_FUNCTION");
-
-    
 
     private final String label;
 

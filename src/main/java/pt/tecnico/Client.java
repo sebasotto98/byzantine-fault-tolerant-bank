@@ -31,6 +31,7 @@ public class Client {
     private static final int MAX_REQUEST_RETRIES = 5;
 
     private static final Map<String, String> puzzles;
+
     static {
         puzzles = new HashMap<>();
         puzzles.put("How much is 2+2?", "4");
@@ -76,13 +77,13 @@ public class Client {
         try {
             System.out.println("Please input alias for the keyStore entry.");
             String alias = sc.nextLine();
-            while(!isRegularInput(alias, false)) {
+            while (!isRegularInput(alias, false)) {
                 System.out.println("Please enter a valid alias.");
                 alias = sc.nextLine();
             }
             System.out.println("Please input password for the keyStore.");
             String passwordString = sc.nextLine();
-            while(!isRegularInput(passwordString, true)) {
+            while (!isRegularInput(passwordString, true)) {
                 System.out.println("Please enter a valid password.");
                 passwordString = sc.nextLine();
             }
@@ -169,12 +170,12 @@ public class Client {
             }
             switch (ch) {
                 case 1:
-                    if(solveRandomPuzzle(sc)) {
+                    if (solveRandomPuzzle(sc)) {
                         handleOpenAccount(myPort, bankAddress, sc);
                     }
                     break;
                 case 2:
-                    if(solveRandomPuzzle(sc)) {
+                    if (solveRandomPuzzle(sc)) {
                         handleLogin(myPort, bankAddress, sc);
                     }
                     break;
@@ -190,7 +191,7 @@ public class Client {
     private static void handleLogin(int myPort, InetAddress bankAddress, Scanner sc) {
         System.out.println("Please input your username.");
         String username = sc.nextLine();
-        while(!isRegularInput(username, false)) {
+        while (!isRegularInput(username, false)) {
             System.out.println("Please enter a valid username.");
             username = sc.nextLine();
         }
@@ -206,8 +207,8 @@ public class Client {
                     logger.error("Error: ", e);
                 }
                 if (bankPublicKey != null) {
-                    requestedID = api.setInitialRequestIDs(privateKey, myPort, bankPorts.get(0), bankAddress,
-                            bankPublicKey, username, Integer.MAX_VALUE, bankNames.get(0));
+                    requestedID = api.setInitialRequestIDs(privateKey, myPort, bankAddress,
+                            username, Integer.MAX_VALUE);
                 }
 
                 if (!requestedID.equals("-1") && !requestedID.equals(ActionLabel.FAIL.getLabel())) {
@@ -226,7 +227,7 @@ public class Client {
     }
 
     private static void showSubmenu(Scanner sc, int myPort, InetAddress bankAddress,
-                                   PrivateKey privateKey, String username, int requestID) {
+                                    PrivateKey privateKey, String username, int requestID) {
         System.out.println("Welcome " + username);
         int ch;
         while (true) {
@@ -242,22 +243,22 @@ public class Client {
             }
             switch (ch) {
                 case 1:
-                    if(solveRandomPuzzle(sc)) {
+                    if (solveRandomPuzzle(sc)) {
                         requestID = handleSendAmount(myPort, bankAddress, requestID, sc, privateKey, username);
                     }
                     break;
                 case 2:
-                    if(solveRandomPuzzle(sc)) {
+                    if (solveRandomPuzzle(sc)) {
                         requestID = handleCheckAccount(myPort, bankAddress, requestID, sc, privateKey, username);
                     }
                     break;
                 case 3:
-                    if(solveRandomPuzzle(sc)) {
+                    if (solveRandomPuzzle(sc)) {
                         requestID = handleReceiveAmount(myPort, bankAddress, requestID, sc, privateKey, username);
                     }
                     break;
                 case 4:
-                    if(solveRandomPuzzle(sc)) {
+                    if (solveRandomPuzzle(sc)) {
                         requestID = handleAuditAccount(myPort, bankAddress, requestID, sc, privateKey, username);
                     }
                     break;
@@ -276,7 +277,7 @@ public class Client {
         try {
             System.out.println("Please input username of the account's owner (to fetch public key).");
             String owner = sc.nextLine();
-            while(!isRegularInput(username, false)) {
+            while (!isRegularInput(username, false)) {
                 System.out.println("Please enter a valid username.");
                 username = sc.nextLine();
             }
@@ -289,7 +290,7 @@ public class Client {
                 logger.error("Error: ", e);
             }
             do {
-                bankResponse = api.auditAccount(privateKey, myPort, bankPorts.get(0), bankAddress, bankNames.get(0), bankPublicKey, username, requestID, owner);
+                bankResponse = api.auditAccount(privateKey, myPort, bankAddress, username, requestID, owner);
                 if (bankResponse != null) {
                     if (bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
                         System.out.println("Owner's account not found!");
@@ -341,7 +342,7 @@ public class Client {
         try {
             System.out.println("Which transaction do you wish to complete?");
             boolean hasInt = sc.hasNextInt();
-            while(!hasInt) {
+            while (!hasInt) {
                 System.out.println("Please input a transaction number.");
                 hasInt = sc.hasNextInt();
             }
@@ -349,7 +350,7 @@ public class Client {
             sc.nextLine(); //flush
 
             int numberOfTries = 0;
-            
+
 
             PublicKey bankPublicKey = null;
             try {
@@ -359,7 +360,7 @@ public class Client {
                 bankPublicKey = null;
             }
             do {
-                bankResponse = api.receiveAmount(privateKey, myPort, bankPorts.get(0), bankAddress, bankNames.get(0), bankPublicKey, username, requestID, transactionId);
+                bankResponse = api.receiveAmount(privateKey, myPort, bankAddress, username, requestID, transactionId);
                 if (bankResponse != null) {
                     if (bankResponse.equals(ActionLabel.COMPLETED_TRANSACTION.getLabel())) {
                         System.out.println("Transaction completed and money transfered!");
@@ -376,7 +377,7 @@ public class Client {
                 numberOfTries++;
             } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_REQUEST_RETRIES);
             numberOfTries = 0;
-            
+
 
         } catch (GeneralSecurityException | IOException e) {
             logger.error("Error: ", e);
@@ -391,13 +392,13 @@ public class Client {
 
             System.out.println("Please input username of the account's owner (to fetch public key).");
             String owner = sc.nextLine();
-            while(!isRegularInput(owner, false)) {
+            while (!isRegularInput(owner, false)) {
                 System.out.println("Please enter a valid owner username.");
                 owner = sc.nextLine();
             }
 
             int numberOfTries = 0;
-            
+
 
             PublicKey bankPublicKey = null;
             try {
@@ -406,7 +407,7 @@ public class Client {
                 logger.error("Error: ", e);
             }
             do {
-                bankResponse = api.checkAccount(privateKey, myPort, bankPorts.get(0), bankAddress, bankNames.get(0), bankPublicKey, username, requestID, owner);
+                bankResponse = api.checkAccount(privateKey, myPort, bankAddress, username, requestID, owner);
                 if (bankResponse != null) {
                     if (bankResponse.equals(ActionLabel.CLIENT_NOT_FOUND.getLabel())) {
                         System.out.println("Owner's account not found!");
@@ -443,7 +444,7 @@ public class Client {
                 numberOfTries++;
             } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_REQUEST_RETRIES);
             numberOfTries = 0;
-            
+
 
         } catch (GeneralSecurityException | IOException e) {
             logger.error("Error: ", e);
@@ -460,14 +461,14 @@ public class Client {
 
             System.out.println("Please input username of receiver account (to fetch public key).");
             String usernameDest = sc.nextLine();
-            while(!isRegularInput(usernameDest, false)) {
+            while (!isRegularInput(usernameDest, false)) {
                 System.out.println("Please enter a valid username.");
                 usernameDest = sc.nextLine();
             }
 
             System.out.println("How much do you want to transfer?");
             boolean hasFloat = sc.hasNextFloat();
-            while(!hasFloat) {
+            while (!hasFloat) {
                 System.out.println("Please input a valid amount.");
                 hasFloat = sc.hasNextFloat();
             }
@@ -475,7 +476,7 @@ public class Client {
             sc.nextLine(); //flush
 
             int numberOfTries = 0;
-            
+
 
             PublicKey bankPublicKey = null;
             try {
@@ -484,7 +485,7 @@ public class Client {
                 logger.error("Error: ", e);
             }
             do {
-                bankResponse = api.sendAmount(privateKey, myPort, bankPorts.get(0), bankAddress, bankNames.get(0), bankPublicKey, requestID, username, amount, usernameDest);
+                bankResponse = api.sendAmount(privateKey, myPort, bankAddress, requestID, username, amount, usernameDest);
                 if (bankResponse != null) {
                     if (bankResponse.equals(ActionLabel.PENDING_TRANSACTION.getLabel())) {
                         System.out.println("Transaction waiting for receiver approval!");
@@ -503,7 +504,7 @@ public class Client {
                 numberOfTries++;
             } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_REQUEST_RETRIES);
             numberOfTries = 0;
-            
+
         } catch (GeneralSecurityException | IOException e) {
             logger.error("Error: ", e);
         }
@@ -518,7 +519,7 @@ public class Client {
         PrivateKey privateKey;
         System.out.println("Please input your username (to fetch public and private key).");
         username = sc.nextLine();
-        while(!isRegularInput(username, false)) {
+        while (!isRegularInput(username, false)) {
             System.out.println("Please enter a valid username.");
             username = sc.nextLine();
         }
@@ -527,14 +528,14 @@ public class Client {
 
         System.out.println("Please input alias for the keyStore entry.");
         String alias = sc.nextLine();
-        while(!isRegularInput(alias, false)) {
+        while (!isRegularInput(alias, false)) {
             System.out.println("Please enter a valid alias.");
             alias = sc.nextLine();
         }
 
         System.out.println("Please input password for the keyStore.");
         String passwordString = sc.nextLine();
-        while(!isRegularInput(passwordString, true)) {
+        while (!isRegularInput(passwordString, true)) {
             System.out.println("Please enter a valid password.");
             passwordString = sc.nextLine();
         }
@@ -542,7 +543,7 @@ public class Client {
         try {
             privateKey = readPrivate(privateKeyPath);
             int numberOfTries = 0;
-            
+
 
             PublicKey bankPublicKey = null;
             try {
@@ -551,7 +552,7 @@ public class Client {
                 logger.error("Error: ", e);
             }
             do {
-                bankResponse = api.openAccount(privateKey, myPort, bankPorts.get(0), bankAddress, bankPublicKey, username, -1, bankNames.get(0));
+                bankResponse = api.openAccount(privateKey, myPort, bankAddress, username, -1);
                 if (bankResponse != null) {
                     if (bankResponse.equals(ActionLabel.ACCOUNT_CREATED.getLabel())) {
                         System.out.println("Account opened successfully!");
@@ -568,7 +569,7 @@ public class Client {
                 numberOfTries++;
             } while ((bankResponse.equals(ActionLabel.FAIL.getLabel())) && numberOfTries < MAX_REQUEST_RETRIES);
             numberOfTries = 0;
-            
+
         } catch (GeneralSecurityException | IOException e) {
             logger.error("Error: ", e);
         }
@@ -577,10 +578,10 @@ public class Client {
 
     private static boolean isRegularInput(String input, boolean pass) {
         Matcher m;
-        if(!pass) {
+        if (!pass) {
             Pattern p1 = Pattern.compile(INPUT_CHARACTER_VALIDATION);
             m = p1.matcher(input);
-            if(!m.matches()) {
+            if (!m.matches()) {
                 return false;
             }
         }
@@ -615,7 +616,7 @@ public class Client {
         String puzzle = (String) keys[generator.nextInt(keys.length)];
         System.out.println(puzzle);
         String answer = sc.nextLine();
-        if(answer.equals(puzzles.get(puzzle))) {
+        if (answer.equals(puzzles.get(puzzle))) {
             return true;
         } else {
             System.out.println("Wrong answer. Please try again.");

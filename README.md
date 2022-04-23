@@ -57,16 +57,8 @@ and how many byzantine faults the system tolerates.
 
 This will run a functional client server, with all command options to execute.
 
-### Run demo application
-
-To run a pre-built example, simply pass it as input. We have provided one of these examples.
-
-`mvn exec:java -Dmainclass=pt.tecnico.Client -Dexec.args="CLIENT_PORT" < inputExample`
-
-This file is an example of a possible usage, with all commands being executed.
-
 ### Run tests
 
-To run the tests we have provided, it is enough to run
+To run the tests we have provided you can use:
 
-`mvn test`
+`mvn -Dtest=TEST_CLASS#TEST_NAME test`

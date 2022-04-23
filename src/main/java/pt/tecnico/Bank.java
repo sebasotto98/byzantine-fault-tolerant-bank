@@ -144,9 +144,9 @@ public class Bank {
 				DatagramPacket clientPacket = new DatagramPacket(buf, buf.length);
 				socket.receive(clientPacket);
 
-				if( //isSimultaneousRequest(clientPacket) ||
-					isLowIngressDataLengthRequest(clientPacket) ||
-					isHighRecentLoadRequest(clientPacket)) {
+				if ( //isSimultaneousRequest(clientPacket) ||
+						isLowIngressDataLengthRequest(clientPacket) ||
+								isHighRecentLoadRequest(clientPacket)) {
 					continue;
 				}
 
@@ -158,7 +158,7 @@ public class Bank {
 				currentThreadIndex = currentThreadIndex % numberOfThreads;
 
 				currentThreadPort++;
-				if(currentThreadPort >= initialThreadPort + numberOfThreads){
+				if (currentThreadPort >= initialThreadPort + numberOfThreads) {
 					currentThreadPort = initialThreadPort;
 				}
 			} catch (IOException e) {
@@ -171,19 +171,19 @@ public class Bank {
 		String requestAddress = clientPacket.getAddress().getHostAddress();
 		int requestLength = clientPacket.getLength();
 		int load = 0;
-		if(recentRequestAddressLengths.containsKey(requestAddress)) {
-			for(int length : recentRequestAddressLengths.get(requestAddress)) {
+		if (recentRequestAddressLengths.containsKey(requestAddress)) {
+			for (int length : recentRequestAddressLengths.get(requestAddress)) {
 				load += length;
 			}
-			if(load > MAX_CLIENT_LOAD) {
+			if (load > MAX_CLIENT_LOAD) {
 				logger.info("Request denied! High recent load from client with IP address: " + requestAddress);
 				return true;
 			}
 		}
-		if(recentRequestAddressLengths.size() > RECENT_REQUESTS_STORED) {
+		if (recentRequestAddressLengths.size() > RECENT_REQUESTS_STORED) {
 			recentRequestAddressLengths.remove(recentRequestAddressLengths.keySet().stream().findFirst().get());
 		}
-		if(!recentRequestAddressLengths.containsKey(requestAddress)) {
+		if (!recentRequestAddressLengths.containsKey(requestAddress)) {
 			recentRequestAddressLengths.put(requestAddress, new ArrayList<>());
 		}
 		recentRequestAddressLengths.get(requestAddress).add(requestLength);
@@ -194,7 +194,7 @@ public class Bank {
 	private static boolean isLowIngressDataLengthRequest(DatagramPacket clientPacket) {
 		String requestAddress = clientPacket.getAddress().getHostAddress();
 		int requestLength = clientPacket.getLength();
-		if(requestLength < MIN_INGRESS_DATA_LENGTH) {
+		if (requestLength < MIN_INGRESS_DATA_LENGTH) {
 			logger.info("Request denied! Low ingress data length in request from client with IP address: " + requestAddress);
 			return true;
 		}
@@ -204,20 +204,20 @@ public class Bank {
 	private static boolean isSimultaneousRequest(DatagramPacket clientPacket) {
 		String requestAddress = clientPacket.getAddress().getHostAddress();
 		Instant now = Instant.now();
-		if(recentRequestAddressTimes.containsKey(requestAddress)) {
-			if(Duration.between(recentRequestAddressTimes.get(requestAddress), now).toMillis() < SHORT_REQUEST_INTERVAL) {
+		if (recentRequestAddressTimes.containsKey(requestAddress)) {
+			if (Duration.between(recentRequestAddressTimes.get(requestAddress), now).toMillis() < SHORT_REQUEST_INTERVAL) {
 				logger.info("Request denied! Two or more requests in a short interval from client with IP address: " + requestAddress);
 				return true;
 			}
 		}
-		if(recentRequestAddressTimes.size() > RECENT_REQUESTS_STORED) {
+		if (recentRequestAddressTimes.size() > RECENT_REQUESTS_STORED) {
 			recentRequestAddressTimes.remove(recentRequestAddressTimes.keySet().stream().findFirst().get());
 		}
 		recentRequestAddressTimes.put(requestAddress, now);
 		return false;
 	}
 
-	private static void readConfig(){
+	private static void readConfig() {
 		FileReader fileReader;
 		BufferedReader reader;
 		String[] infos;
@@ -228,7 +228,7 @@ public class Bank {
 			while ((line = reader.readLine()) != null) {
 				infos = line.split(",");
 				//bank only needs this bank information
-				if(infos[0].equals(bankName)){
+				if (infos[0].equals(bankName)) {
 					port = Integer.parseInt(infos[1]);
 					initialThreadPort = Integer.parseInt(infos[2]);
 					numberOfThreads = Integer.parseInt(infos[3]);
@@ -303,5 +303,5 @@ public class Bank {
 				logger.error("Error: ", e);
 			}
 		}
-    }
+	}
 }

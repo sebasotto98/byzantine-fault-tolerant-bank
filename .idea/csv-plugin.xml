@@ -17,6 +17,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\bftb1_csv_files\client2_pending_transaction_history.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\bftb1_csv_files\clients.csv">
           <value>
             <Attribute>
@@ -32,6 +39,34 @@
           </value>
         </entry>
         <entry key="\bftb1_csv_files\signatures.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\bftb1_csv_files\transactionId.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\bftb2_csv_files\transactionId.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\bftb3_csv_files\transactionId.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\bftb4_csv_files\transactionId.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

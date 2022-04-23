@@ -182,6 +182,7 @@ public class WorkerThread extends Thread {
         body = infoClientJson.get("body").getAsString();
         requestId = infoClientJson.get("requestId").getAsString();
         mac = requestJson.get("MAC").getAsString();
+
         signature = infoClientJson.get("signature").getAsString();
 
         String[] bodyArray = body.split(",");
@@ -202,16 +203,16 @@ public class WorkerThread extends Thread {
         int clientID = Integer.parseInt(id);
 
 
-        if(!bodyArray[0].equals(ActionLabel.OPEN_ACCOUNT.getLabel()) &&
+        if (!bodyArray[0].equals(ActionLabel.OPEN_ACCOUNT.getLabel()) &&
                 !bodyArray[0].equals(ActionLabel.REQUEST_BANK_ID.getLabel()) &&
-                !bodyArray[0].equals(ActionLabel.REQUEST_MY_ID.getLabel())){
+                !bodyArray[0].equals(ActionLabel.REQUEST_MY_ID.getLabel())) {
             if (clientID == -1) {
                 logger.error("Client has no request ID");
                 response[0] = ActionLabel.FAIL.getLabel();
-            }else if (idReceived <= clientID) {
+            } else if (idReceived <= clientID) {
                 logger.info("Message is duplicate, shall be ignored");
                 response[0] = ActionLabel.FAIL.getLabel();
-            }else if (idReceived != Integer.MAX_VALUE) { //valid request id
+            } else if (idReceived != Integer.MAX_VALUE) { //valid request id
                 synchronized (requestIdFileLock) {
                     updateRequestID(from, requestId);
                 }
@@ -243,14 +244,13 @@ public class WorkerThread extends Thread {
         response[1] = from;
         response[2] = requestId;
 
-        if(bodyArray[0].equals(ActionLabel.WRITE_BACK.getLabel())){
-            response[0] =  handleWriteBackRequest(body);
+        if (bodyArray[0].equals(ActionLabel.WRITE_BACK.getLabel())) {
+            response[0] = handleWriteBackRequest(body);
         } else {
             response[0] = setResponse(bodyArray, from, signature);
         }
 
         logger.info(String.format("Message to '%s', from '%s':%n%s%n", to, from, body));
-        logger.info("response body = " + response[0]);
 
         return response;
     }
@@ -330,9 +330,7 @@ public class WorkerThread extends Thread {
             synchronized (requestIdFileLock) {
                 clientId = getCurrentRequestIdFrom(username);
             }
-            String sFinal = clientId + "," + bankRequestId;
-            logger.info("FINAL ====== " + sFinal);
-            return sFinal;
+            return clientId + "," + bankRequestId;
         } else {
             return ActionLabel.UNKNOWN_FUNCTION.getLabel();
         }
@@ -550,7 +548,7 @@ public class WorkerThread extends Thread {
             String senderPendingTransactionsFile = this.name + "_csv_files/" + username + "_pending_transaction_history.csv";
 
             int transactionId = readTransactionIdAndIncrement();
-            if (transactionId == -1){
+            if (transactionId == -1) {
                 logger.info("sendAmount: Error reading transaction id file.");
                 return ActionLabel.FAIL.getLabel();
             }
@@ -562,22 +560,6 @@ public class WorkerThread extends Thread {
             transaction[3] = receiver;
             transaction[4] = amount;
             transaction[5] = signature;
-
-            //send toSign request
-            //String toSign = transaction[0] + "," +
-            //        receiver + "," +
-            //        username + "," +
-            //        amount + ",pending";
-
-            //requestSign(toSign, username);
-
-            //String r = receiveAndCheckRequestSign();
-
-            //if(r.equals(ActionLabel.FAIL.getLabel())){
-            //    return r;
-            //}
-
-            //writeToCSV(NAME + PENDING_TRANSACTION_SIGN_FILE_PATH, toSign.split(","),true);
 
             bankVars.incrementTransactionId();
             synchronized (bankVars.getClientLock(receiver)) {
@@ -775,11 +757,11 @@ public class WorkerThread extends Thread {
                     }
 
                     writeToCSV(senderCompletedTransactionsFile, receiverTransaction, true);
-                    
+
                     // alter signature to that of this transaction
-                    receiverTransaction[5] = signature; 
+                    receiverTransaction[5] = signature;
                     writeToCSV(receiverTransactionsFile, receiverTransaction, true);
-                    
+
                 }
             }
 
@@ -818,7 +800,7 @@ public class WorkerThread extends Thread {
         }
     }
 
-    private void writeToCSV(String filePath, String[] values, boolean append) {
+    public static void writeToCSV(String filePath, String[] values, boolean append) {
         try {
             FileWriter outputFile = new FileWriter(filePath, append);
             CSVWriter writer = new CSVWriter(outputFile, ',',
@@ -846,7 +828,7 @@ public class WorkerThread extends Thread {
         return pub;
     }
 
-    private int readTransactionIdAndIncrement(){
+    private int readTransactionIdAndIncrement() {
         //get current value
         int transactionId;
         FileReader fileReader;
@@ -878,7 +860,7 @@ public class WorkerThread extends Thread {
         infoJson.addProperty("to", username);
         infoJson.addProperty("toSign", toSign);
         infoJson.addProperty("body", ActionLabel.SIGN.getLabel());
-        infoJson.addProperty("requestId",Integer.toString(bankRequestId.get()));
+        infoJson.addProperty("requestId", Integer.toString(bankRequestId.get()));
 
         JsonObject responseJson = JsonParser.parseString("{}").getAsJsonObject();
         responseJson.add("info", infoJson);
@@ -923,7 +905,6 @@ public class WorkerThread extends Thread {
         MessageDigest msgDig = MessageDigest.getInstance(DIGEST_ALGO);
         Cipher decryptCipher = Cipher.getInstance(CIPHER_ALGO);
         Cipher signCipher = Cipher.getInstance(CIPHER_ALGO);
-
 
         // Parse JSON and extract arguments
         JsonObject requestJson = JsonParser.parseString(signInText).getAsJsonObject();
@@ -979,9 +960,9 @@ public class WorkerThread extends Thread {
         }
 
         int lastIndex = body.lastIndexOf(';');
-        String sign = body.substring(lastIndex+1);
+        String sign = body.substring(lastIndex + 1);
         byte[] signBytes = sign.getBytes();
-        String request = body.substring(0,lastIndex);
+        String request = body.substring(0, lastIndex);
 
         byte[] requestBytes;
         try {
@@ -999,19 +980,19 @@ public class WorkerThread extends Thread {
             return ActionLabel.FAIL.getLabel();
         }
 
-        writeToCSV(this.name + PENDING_TRANSACTION_SIGN_FILE_PATH,body.split(","),true);
+        writeToCSV(this.name + PENDING_TRANSACTION_SIGN_FILE_PATH, body.split(","), true);
 
         return ActionLabel.SUCCESS.getLabel();
     }
 
-    private String handleWriteBackRequest(String body){
+    private String handleWriteBackRequest(String body) {
 
         String[] transactions = body.split(";");
 
         String[] types = transactions[0].split(",");
 
-        if(types[1].equals(ActionLabel.AUDITING.getLabel())){
-            if(transactions.length > 1) {
+        if (types[1].equals(ActionLabel.AUDITING.getLabel())) {
+            if (transactions.length > 1) {
                 redoClientsFile(transactions[1]);
 
                 String from = transactions[1].split(",")[0];
@@ -1020,8 +1001,8 @@ public class WorkerThread extends Thread {
                 redoTransactionsFile(transactions, from, path);
             }
 
-        } else if(types[1].equals(ActionLabel.CHECKING.getLabel())){
-            if(transactions.length > 1) {
+        } else if (types[1].equals(ActionLabel.CHECKING.getLabel())) {
+            if (transactions.length > 1) {
                 redoClientsFile(transactions[1]);
 
                 String from = transactions[1].split(",")[0];
@@ -1038,7 +1019,9 @@ public class WorkerThread extends Thread {
         return ActionLabel.SUCCESS.getLabel();
     }
 
-    public void redoClientsFile(String clientEntry){
+    public void redoClientsFile(String clientEntry) {
+
+        System.out.println(clientEntry);
 
         String[] clientInfos = clientEntry.split(",");
         String clientName = clientInfos[0];
@@ -1067,8 +1050,8 @@ public class WorkerThread extends Thread {
             return;
         }
 
-        for(String[] c: clients){
-            if(c[0].equals(clientName)){
+        for (String[] c : clients) {
+            if (c[0].equals(clientName)) {
                 c[1] = availableAmount;
                 c[2] = bookAmount;
                 break;
@@ -1076,18 +1059,18 @@ public class WorkerThread extends Thread {
         }
 
         boolean flag = false;
-        synchronized (clientsFileLock){
-            for(String[] c : clients) {
+        synchronized (clientsFileLock) {
+            for (String[] c : clients) {
                 writeToCSV(this.name + CLIENTS_CSV_FILE_PATH, c, flag);
                 flag = true;
             }
         }
     }
 
-    public void redoTransactionsFile(String[] transactions, String from, String path){
+    public void redoTransactionsFile(String[] transactions, String from, String path) {
         boolean flag = false;
-        synchronized (bankVars.getClientLock(from)){
-            for(int i = 2; i < transactions.length; i++){
+        synchronized (bankVars.getClientLock(from)) {
+            for (int i = 2; i < transactions.length; i++) {
                 String[] transaction = transactions[i].split(",");
                 writeToCSV(path, transaction, flag);
                 flag = true;

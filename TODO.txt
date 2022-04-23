@@ -1,8 +1,0 @@
-Stage 2 functions:
-
-	Steps (recommend in instructions):
-		- Transform Byzantine Regular Register into Byzantine Atomic Register
-	
-Other:
-	- Complete API and Bank unit tests (+dependability tests)
-	- Refactor to be more modular???

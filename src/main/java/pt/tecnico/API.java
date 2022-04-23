@@ -2,7 +2,6 @@ package pt.tecnico;
 
 import java.io.*;
 import java.lang.invoke.MethodHandles;
-import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.X509EncodedKeySpec;
 import java.security.PublicKey;
@@ -53,27 +52,24 @@ public class API {
 		API.faults = faults;
 	}
 
-	public String setInitialRequestIDs(PrivateKey privateKey, int clientPort, int serverPort,
-									   InetAddress serverAddress, PublicKey bankPublic, String username,
-									   int requestID, String bankName)
+	public String setInitialRequestIDs(PrivateKey privateKey, int clientPort, InetAddress serverAddress,
+									   String username, int requestID)
 			throws GeneralSecurityException, IOException {
 
 		return sendMessageAndReceiveBody(privateKey, clientPort, serverAddress,
 				username, ActionLabel.REQUEST_MY_ID.getLabel(), requestID, ActionLabel.REQUEST_MY_ID.getLabel());
 	}
 
-	public String openAccount(PrivateKey accountPrivateKey, int clientPort,
-							  int serverPort, InetAddress serverAddress,
-							  PublicKey bankPublic, String username, int requestID, String bankName)
+	public String openAccount(PrivateKey accountPrivateKey, int clientPort, InetAddress serverAddress,
+							  String username, int requestID)
 			throws GeneralSecurityException, IOException {
 
 		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverAddress,
 				username, ActionLabel.OPEN_ACCOUNT.getLabel(), requestID, ActionLabel.OPEN_ACCOUNT.getLabel());
 	}
 
-	public String sendAmount(PrivateKey sourcePrivateKey, int clientPort,
-							 int serverPort, InetAddress serverAddress, String bankName,
-							 PublicKey bankPublic, int requestID, String username, float amount, String usernameDest)
+	public String sendAmount(PrivateKey sourcePrivateKey, int clientPort, InetAddress serverAddress,
+							 int requestID, String username, float amount, String usernameDest)
 			throws GeneralSecurityException, IOException {
 
 		String bodyText = ActionLabel.SEND_AMOUNT.getLabel() + "," + amount + "," + usernameDest;
@@ -81,9 +77,8 @@ public class API {
 		return sendMessageAndReceiveBody(sourcePrivateKey, clientPort, serverAddress, username, bodyText, requestID, ActionLabel.WRITE.getLabel());
 	}
 
-	public String checkAccount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
-							   InetAddress serverAddress, String bankName,
-							   PublicKey bankPublic, String username, int requestID, String owner)
+	public String checkAccount(PrivateKey accountPrivateKey, int clientPort, InetAddress serverAddress,
+							   String username, int requestID, String owner)
 			throws GeneralSecurityException, IOException {
 
 		checking = true;
@@ -92,9 +87,8 @@ public class API {
 		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverAddress, username, bodyText, requestID, ActionLabel.READ.getLabel());
 	}
 
-	public String receiveAmount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
-								InetAddress serverAddress, String bankName,
-								PublicKey bankPublic, String username, int requestID, int transactionId)
+	public String receiveAmount(PrivateKey accountPrivateKey, int clientPort, InetAddress serverAddress,
+								String username, int requestID, int transactionId)
 			throws GeneralSecurityException, IOException {
 
 
@@ -103,9 +97,8 @@ public class API {
 		return sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverAddress, username, bodyText, requestID, ActionLabel.WRITE.getLabel());
 	}
 
-	public String auditAccount(PrivateKey accountPrivateKey, int clientPort, int serverPort,
-							   InetAddress serverAddress, String bankName,
-							   PublicKey bankPublic, String username, int requestID, String owner)
+	public String auditAccount(PrivateKey accountPrivateKey, int clientPort, InetAddress serverAddress,
+							   String username, int requestID, String owner)
 			throws GeneralSecurityException, IOException {
 
 		auditing = true;
@@ -248,7 +241,7 @@ public class API {
 
 			infoBankJson = responseJson.getAsJsonObject("info");
 			from = infoBankJson.get("from").getAsString();
-			to = infoBankJson.get("to").getAsString();
+			//to = infoBankJson.get("to").getAsString();
 			body = infoBankJson.get("body").getAsString();
 			requestIdBank = infoBankJson.get("requestId").getAsString();
 			token = infoBankJson.get("token").getAsString();
@@ -288,12 +281,12 @@ public class API {
 					if (!ids[0].equals(ActionLabel.FAIL.getLabel()) && Integer.parseInt(ids[0]) > maxId) {
 						maxId = Integer.parseInt(ids[0]);
 					}
-					if (!ids[1].equals(ActionLabel.FAIL.getLabel()) && Integer.parseInt(ids[1]) > maxIdBank){
+					if (!ids[1].equals(ActionLabel.FAIL.getLabel()) && Integer.parseInt(ids[1]) > maxIdBank) {
 						maxIdBank = Integer.parseInt(ids[1]);
 					}
 				}
 			}
-			if(type.equals(ActionLabel.OPEN_ACCOUNT.getLabel())){
+			if (type.equals(ActionLabel.OPEN_ACCOUNT.getLabel())) {
 				openAccountResponseList.add(body);
 			}
 			numberOfTries++;
@@ -306,15 +299,15 @@ public class API {
 		} else if (type.equals(ActionLabel.READ.getLabel()) && readFinished) {
 			Integer key = Collections.max(valueID.keySet());
 			String writeBack = ActionLabel.WRITE_BACK.getLabel() + ",";
-			if(auditing){
+			if (auditing) {
 				writeBack = writeBack + ActionLabel.AUDITING.getLabel() + ";";
 				auditing = false;
-			} else if(checking){
+			} else if (checking) {
 				writeBack = writeBack + ActionLabel.CHECKING.getLabel() + ";";
 				checking = false;
 			}
 			writeBack = writeBack + valueID.get(key);
-			sendMessageAndReceiveBody(accountPrivateKey,clientPort, serverAddress, username, writeBack, requestID + 1, ActionLabel.WRITE.getLabel());
+			sendMessageAndReceiveBody(accountPrivateKey, clientPort, serverAddress, username, writeBack, requestID + 1, ActionLabel.WRITE.getLabel());
 
 			return valueID.get(key);
 		} else if (type.equals(ActionLabel.OPEN_ACCOUNT.getLabel()) && responseList.size() == numberOfTries) {
@@ -322,12 +315,12 @@ public class API {
 				return ActionLabel.DUPLICATE_USERNAME.getLabel();
 			} else if (Collections.frequency(openAccountResponseList, ActionLabel.FAIL.getLabel()) > faults) {
 				return ActionLabel.FAIL.getLabel();
-			} else{
+			} else {
 				return ActionLabel.ACCOUNT_CREATED.getLabel();
 			}
 		} else if (type.equals(ActionLabel.REQUEST_MY_ID.getLabel()) && responseList.size() == numberOfTries) {
 			bankRequestID = maxIdBank;
-			if(maxId == -1){
+			if (maxId == -1) {
 				return ActionLabel.FAIL.getLabel();
 			}
 			return Integer.toString(maxId);
@@ -359,7 +352,6 @@ public class API {
 		Cipher encryptCipher = Cipher.getInstance(CIPHER_ALGO);
 
 		int size = splited.length;
-		String sign;
 
 		if (type.equals(ActionLabel.AUDIT_ACCOUNT.getLabel())) {
 
@@ -367,7 +359,7 @@ public class API {
 			encryptCipher.init(Cipher.DECRYPT_MODE, usernameKey);
 
 			try {
-				sign = Base64.getEncoder().encodeToString(encryptCipher.doFinal(Base64.getDecoder().decode(splited[size - 1])));
+				Base64.getEncoder().encodeToString(encryptCipher.doFinal(Base64.getDecoder().decode(splited[size - 1])));
 			} catch (Exception e) {
 				logger.info("Signature does not match!");
 				return false;
@@ -377,7 +369,7 @@ public class API {
 			encryptCipher.init(Cipher.DECRYPT_MODE, usernameKey);
 
 			try {
-				sign = Base64.getEncoder().encodeToString(encryptCipher.doFinal(Base64.getDecoder().decode(splited[size - 1])));
+				Base64.getEncoder().encodeToString(encryptCipher.doFinal(Base64.getDecoder().decode(splited[size - 1])));
 			} catch (Exception e) {
 				logger.info("Signature does not match!");
 				return false;

@@ -12,7 +12,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,7 +27,7 @@ public class APITest {
         bankPorts = new ArrayList<>();
         bankPorts.add(5000);
     }
-    private static final int faults = 0;
+    private static final int faults = 1;
 
     private API api;
     private Thread bankThread;
@@ -36,8 +35,9 @@ public class APITest {
     private InetAddress bankAddress;
     private String bankResponse;
     private final String username = "client1";
+    private final String usernameDest = "client2";
     private PrivateKey privateKey;
-    private PublicKey bankPublicKey;
+    private PrivateKey destPrivateKey;
 
     @BeforeEach
     public void setUp() {
@@ -50,9 +50,10 @@ public class APITest {
         }
 
         String privateKeyPath = "keys/" + username + "_private_key.der";
+        String destPrivateKeyPath = "keys/" + usernameDest + "_private_key.der";
         try {
             privateKey = Client.readPrivate(privateKeyPath);
-            bankPublicKey = Client.readPublic("keys/" + bankNames.get(0) + "_public_key.der");
+            destPrivateKey = Client.readPrivate(destPrivateKeyPath);
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
         }
@@ -64,9 +65,11 @@ public class APITest {
         if(bankThread != null) {
             bankThread.stop();
         }
-
         try {
             new FileOutputStream(bankNames.get(0) + "_csv_files/clients.csv").close();
+            new FileOutputStream(bankNames.get(0) + "_csv_files/signatures.csv").close();
+            new FileOutputStream(bankNames.get(0) + "_csv_files/transactionId.csv").close();
+            new FileOutputStream(bankNames.get(0) + "_csv_files/requestIDs.csv").close();
             File client1CompleteTransactionHistoryFile = new File(bankNames.get(0) + "_csv_files/client1_complete_transaction_history.csv");
             if(client1CompleteTransactionHistoryFile.exists()) {
                 client1CompleteTransactionHistoryFile.delete();
@@ -89,14 +92,14 @@ public class APITest {
     }
 
     @Test
-    public void TestOpenAccount_accountCreated_success() {
+    public void openAccountTest_accountCreated_success() {
 
         BankHelper bankHelper = new BankHelper(bankNames.get(0));
         bankThread = new Thread(bankHelper);
         bankThread.start();
 
         try {
-            bankResponse = api.openAccount(privateKey, port, bankPorts.get(0), bankAddress, bankPublicKey, username, -1, bankNames.get(0));
+            bankResponse = api.openAccount(privateKey, port, bankAddress, username, -1);
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
         }
@@ -106,10 +109,10 @@ public class APITest {
     }
 
     @Test
-    public void TestOpenAccount_accountCreated_failure() {
+    public void openAccountTest_accountCreated_failure() {
 
         try {
-            bankResponse = api.openAccount(privateKey, port, bankPorts.get(0), bankAddress, bankPublicKey, username, -1, bankNames.get(0));
+            bankResponse = api.openAccount(privateKey, port, bankAddress, username, -1);
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
         }
@@ -117,76 +120,140 @@ public class APITest {
         Assertions.assertEquals(ActionLabel.FAIL.getLabel(), bankResponse);
     }
 
-    /* TODO: Implement the following tests
-
     @Test
-    public void openAccount_clientsFileCreated_success() {
+    public void sendAmountTest_amountSent_success() {
+        BankHelper bankHelper = new BankHelper(bankNames.get(0));
+        bankThread = new Thread(bankHelper);
+        bankThread.start();
 
+        WorkerThread.writeToCSV(bankNames.get(0) + "_csv_files/clients.csv", new String[]{username, "1000", "1000"}, false);
+        WorkerThread.writeToCSV(bankNames.get(0) + "_csv_files/clients.csv", new String[]{usernameDest, "1000", "1000"}, true);
+        WorkerThread.writeToCSV(bankNames.get(0) + "_csv_files/transactionId.csv", new String[]{String.valueOf(0)}, true);
+
+        try {
+            bankResponse = api.sendAmount(privateKey, port, bankAddress, -1, username, 1000, usernameDest);
+        } catch (GeneralSecurityException | IOException e) {
+            e.printStackTrace();
+        }
+
+        Assertions.assertEquals(ActionLabel.SUCCESS.getLabel(), bankResponse);
     }
 
     @Test
-    public void openAccount_clientsFileCreated_failure() {
+    public void sendAmountTest_amountSent_failure() {
+        try {
+            bankResponse = api.sendAmount(privateKey, port, bankAddress, -1, username, 1000, usernameDest);
+        } catch (GeneralSecurityException | IOException e) {
+            e.printStackTrace();
+        }
 
+        Assertions.assertEquals(ActionLabel.FAIL.getLabel(), bankResponse);
     }
 
     @Test
-    public void openAccount_completeTransactionsHistoryFileCreated_success() {
+    public void checkAccountTest_checkDone_success() {
 
+        BankHelper bankHelper = new BankHelper(bankNames.get(0));
+        bankThread = new Thread(bankHelper);
+        bankThread.start();
+
+        File client1PendingTransactionHistoryFile = new File(bankNames.get(0) + "_csv_files/client1_pending_transaction_history.csv");
+        try {
+            client1PendingTransactionHistoryFile.createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        int requestID = 10000;
+        WorkerThread.writeToCSV(bankNames.get(0) + "_csv_files/requestIDs.csv", new String[]{username, String.valueOf(requestID-1)}, true);
+        WorkerThread.writeToCSV(bankNames.get(0) + "_csv_files/clients.csv", new String[]{username, "1000", "1000"}, false);
+        try {
+            bankResponse = api.checkAccount(privateKey, port, bankAddress, username, requestID, username);
+        } catch (GeneralSecurityException | IOException e) {
+            e.printStackTrace();
+        }
+
+        Assertions.assertNotEquals(ActionLabel.FAIL.getLabel(), bankResponse);
     }
 
     @Test
-    public void openAccount_completeTransactionsHistoryFileCreated_failure() {
+    public void checkAccountTest_checkDone_failure() {
+        try {
+            bankResponse = api.checkAccount(privateKey, port, bankAddress, username, 1, username);
+        } catch (GeneralSecurityException | IOException e) {
+            e.printStackTrace();
+        }
 
+        Assertions.assertEquals(ActionLabel.FAIL.getLabel(), bankResponse);
     }
 
     @Test
-    public void openAccount_pendingTransactionsHistoryFileCreated_success() {
+    public void receiveAmountTest_amountReceived_success() {
+        BankHelper bankHelper = new BankHelper(bankNames.get(0));
+        bankThread = new Thread(bankHelper);
+        bankThread.start();
 
+        int requestID = 10000;
+        WorkerThread.writeToCSV(bankNames.get(0) + "_csv_files/clients.csv", new String[]{username, "1000", "1000"}, false);
+        WorkerThread.writeToCSV(bankNames.get(0) + "_csv_files/clients.csv", new String[]{usernameDest, "1000", "1000"}, true);
+        WorkerThread.writeToCSV(bankNames.get(0) + "_csv_files/transactionId.csv", new String[]{String.valueOf(0)}, true);
+
+        try {
+            api.sendAmount(privateKey, port, bankAddress, requestID, username, 500, usernameDest);
+            bankResponse = api.receiveAmount(destPrivateKey, port, bankAddress, usernameDest, requestID+1, 1);
+        } catch (GeneralSecurityException | IOException e) {
+            e.printStackTrace();
+        }
+
+        Assertions.assertEquals(ActionLabel.SUCCESS.getLabel(), bankResponse);
     }
 
     @Test
-    public void openAccount_pendingTransactionsHistoryFileCreated_failure() {
+    public void receiveAmountTest_amountReceived_failure() {
+        try {
+            bankResponse = api.receiveAmount(privateKey, port, bankAddress, username, -1, 1);
+        } catch (GeneralSecurityException | IOException e) {
+            e.printStackTrace();
+        }
 
+        Assertions.assertEquals(ActionLabel.FAIL.getLabel(), bankResponse);
     }
 
     @Test
-    public void sendAmount_amountSent_success() {
+    public void auditAccountTest_auditDone_success() {
+        BankHelper bankHelper = new BankHelper(bankNames.get(0));
+        bankThread = new Thread(bankHelper);
+        bankThread.start();
 
+        File client1CompleteTransactionHistoryFile = new File(bankNames.get(0) + "_csv_files/client1_complete_transaction_history.csv");
+        File client1PendingTransactionHistoryFile = new File(bankNames.get(0) + "_csv_files/client1_pending_transaction_history.csv");
+        try {
+            client1CompleteTransactionHistoryFile.createNewFile();
+            client1PendingTransactionHistoryFile.createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        int requestID = 10000;
+        WorkerThread.writeToCSV(bankNames.get(0) + "_csv_files/requestIDs.csv", new String[]{username, String.valueOf(requestID-1)}, true);
+        WorkerThread.writeToCSV(bankNames.get(0) + "_csv_files/clients.csv", new String[]{username, "1000", "1000"}, false);
+
+        try {
+            bankResponse = api.auditAccount(privateKey, port, bankAddress, username, requestID, username);
+        } catch (GeneralSecurityException | IOException e) {
+            e.printStackTrace();
+        }
+
+        Assertions.assertNotEquals(ActionLabel.FAIL.getLabel(), bankResponse);
     }
 
     @Test
-    public void sendAmount_amountSent_failure() {
+    public void auditAccountTest_auditDone_failure() {
+        try {
+            bankResponse = api.auditAccount(privateKey, port, bankAddress, username, -1, username);
+        } catch (GeneralSecurityException | IOException e) {
+            e.printStackTrace();
+        }
 
+        Assertions.assertEquals(ActionLabel.FAIL.getLabel(), bankResponse);
     }
 
-    @Test
-    public void checkAmount_success() {
-
-    }
-
-    @Test
-    public void checkAmount_failure() {
-
-    }
-
-    @Test
-    public void receiveAmount_amountReceived_success() {
-
-    }
-
-    @Test
-    public void receiveAmount_amountReceived_failure() {
-
-    }
-
-    @Test
-    public void auditAccount_success() {
-
-    }
-
-    @Test
-    public void auditAccount_failure() {
-
-    }
-    */
 }
