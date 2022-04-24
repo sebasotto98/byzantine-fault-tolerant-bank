@@ -59,6 +59,20 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\bftb3_csv_files\client1_complete_transaction_history.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\bftb3_csv_files\clients.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\bftb3_csv_files\transactionId.csv">
           <value>
             <Attribute>

@@ -144,7 +144,7 @@ public class Bank {
 				DatagramPacket clientPacket = new DatagramPacket(buf, buf.length);
 				socket.receive(clientPacket);
 
-				if ( //isSimultaneousRequest(clientPacket) ||
+				if (isSimultaneousRequest(clientPacket) ||
 						isLowIngressDataLengthRequest(clientPacket) ||
 								isHighRecentLoadRequest(clientPacket)) {
 					continue;
@@ -202,10 +202,21 @@ public class Bank {
 	}
 
 	private static boolean isSimultaneousRequest(DatagramPacket clientPacket) {
+
+		int clientLength = clientPacket.getLength();
+		byte[] clientData = clientPacket.getData();
+		logger.info(String.format("%d bytes %n", clientLength));
+
+		// Convert request to string
+		String clientText = new String(clientData, 0, clientLength);
+		logger.info("Received request: " + clientText);
+
 		String requestAddress = clientPacket.getAddress().getHostAddress();
 		Instant now = Instant.now();
 		if (recentRequestAddressTimes.containsKey(requestAddress)) {
-			if (Duration.between(recentRequestAddressTimes.get(requestAddress), now).toMillis() < SHORT_REQUEST_INTERVAL) {
+			if ((Duration.between(recentRequestAddressTimes.get(requestAddress), now).toMillis() < SHORT_REQUEST_INTERVAL)
+					&& !(clientText.contains(ActionLabel.WRITE_BACK.getLabel()))
+					&& !(clientText.contains(ActionLabel.SIGN.getLabel()))) {
 				logger.info("Request denied! Two or more requests in a short interval from client with IP address: " + requestAddress);
 				return true;
 			}
